@@ -9,3 +9,18 @@
   --color-brand: #E10600;
   --color-brand-light: #FF2B26;
 }
+
+:root {
+  color-scheme: dark;
+}
+
+/* Smooth hover for native calendar icons */
+input[type="month"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+input[type="month"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
