@@ -131,10 +131,19 @@ export default function App() {
     }
   };
 
-  const handleAddBarber = async (name: string, unitId: string) => {
-    const newBarber = { id: crypto.randomUUID(), name, unit_id: unitId };
+  const handleAddBarber = async (name: string, unitId: string, externalId: string) => {
+    const newBarber = { id: crypto.randomUUID(), name, unit_id: unitId, externalId: externalId || undefined };
     setBarbers([...barbers, newBarber]);
     await supabase.from('barbers').insert([newBarber]);
+  };
+
+  const handleUpdateBarber = async (id: string, data: Partial<Barber>) => {
+    const updatedBarber = barbers.find(b => b.id === id);
+    if (!updatedBarber) return;
+    
+    const newBarber = { ...updatedBarber, ...data };
+    setBarbers(barbers.map(b => b.id === id ? newBarber : b));
+    await supabase.from('barbers').update(data).eq('id', id);
   };
 
   const handleRemoveBarber = async (id: string) => {
@@ -356,6 +365,7 @@ export default function App() {
             onAddUnit={handleAddUnit}
             onRemoveUnit={handleRemoveUnit}
             onAddBarber={handleAddBarber}
+            onUpdateBarber={handleUpdateBarber}
             onRemoveBarber={handleRemoveBarber}
           />
         ) : (

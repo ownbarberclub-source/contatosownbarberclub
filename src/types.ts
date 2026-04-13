@@ -36,5 +36,6 @@ export interface Barber {
   id: string;
   name: string;
   unit_id: string;
+  externalId?: string;
   createdAt?: string;
 }

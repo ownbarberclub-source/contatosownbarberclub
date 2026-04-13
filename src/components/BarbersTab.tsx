@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Unit, Barber, ReferralRecord, User } from '../types';
-import { Building2, Scissors, CalendarDays, Plus, Trash2, Trophy } from 'lucide-react';
+import { Building2, Scissors, CalendarDays, Plus, Trash2, Trophy, Edit2, Check, X } from 'lucide-react';
 
 interface BarbersTabProps {
   units: Unit[];
@@ -9,14 +9,21 @@ interface BarbersTabProps {
   currentUser: User;
   onAddUnit: (name: string) => void;
   onRemoveUnit: (id: string) => void;
-  onAddBarber: (name: string, unitId: string) => void;
+  onAddBarber: (name: string, unitId: string, externalId: string) => void;
+  onUpdateBarber: (id: string, data: Partial<Barber>) => void;
   onRemoveBarber: (id: string) => void;
 }
 
-export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, onRemoveUnit, onAddBarber, onRemoveBarber }: BarbersTabProps) {
+export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, onRemoveUnit, onAddBarber, onUpdateBarber, onRemoveBarber }: BarbersTabProps) {
   const [newUnitName, setNewUnitName] = useState('');
   const [newBarberName, setNewBarberName] = useState('');
   const [selectedUnitForBarber, setSelectedUnitForBarber] = useState('');
+  const [newBarberExternalId, setNewBarberExternalId] = useState('');
+  
+  const [editingBarberId, setEditingBarberId] = useState<string | null>(null);
+  const [editBarberName, setEditBarberName] = useState('');
+  const [editBarberUnit, setEditBarberUnit] = useState('');
+  const [editBarberExternalId, setEditBarberExternalId] = useState('');
   
   // Month selector YYYY-MM
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -34,8 +41,26 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
   const handleAddBarber = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBarberName.trim() || !selectedUnitForBarber) return;
-    onAddBarber(newBarberName.trim(), selectedUnitForBarber);
+    onAddBarber(newBarberName.trim(), selectedUnitForBarber, newBarberExternalId.trim());
     setNewBarberName('');
+    setNewBarberExternalId('');
+  };
+
+  const startEditingBarber = (barber: Barber) => {
+    setEditingBarberId(barber.id);
+    setEditBarberName(barber.name);
+    setEditBarberUnit(barber.unit_id);
+    setEditBarberExternalId(barber.externalId || '');
+  };
+
+  const handleUpdateBarber = (id: string) => {
+    if (!editBarberName.trim() || !editBarberUnit) return;
+    onUpdateBarber(id, {
+      name: editBarberName.trim(),
+      unit_id: editBarberUnit,
+      externalId: editBarberExternalId.trim() || undefined
+    });
+    setEditingBarberId(null);
   };
 
   // Ranking calculation
@@ -139,6 +164,13 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                     placeholder="Nome do Barbeiro..."
                     className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:ring-2 focus:ring-brand/50 focus:border-brand"
                   />
+                  <input
+                    type="text"
+                    value={newBarberExternalId}
+                    onChange={(e) => setNewBarberExternalId(e.target.value)}
+                    placeholder="ID/Cód Externo (Opcional)"
+                    className="w-48 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:ring-2 focus:ring-brand/50 focus:border-brand"
+                  />
                   <select
                     required
                     value={selectedUnitForBarber}
@@ -163,14 +195,56 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                   barbers.map(barber => {
                     const bUnit = units.find(u => u.id === barber.unit_id);
                     return (
-                      <div key={barber.id} className="flex items-center justify-between bg-zinc-950/50 border border-zinc-800/50 rounded-lg px-4 py-3">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-zinc-300">{barber.name}</span>
-                          <span className="text-xs text-zinc-500">{bUnit?.name || '---'}</span>
-                        </div>
-                        <button onClick={() => onRemoveBarber(barber.id)} className="text-zinc-500 hover:text-red-500 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div key={barber.id} className="flex flex-col bg-zinc-950/50 border border-zinc-800/50 rounded-lg px-4 py-3">
+                        {editingBarberId === barber.id ? (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex gap-2 w-full">
+                              <input
+                                type="text"
+                                value={editBarberName}
+                                onChange={(e) => setEditBarberName(e.target.value)}
+                                className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-sm focus:border-brand"
+                                placeholder="Nome"
+                              />
+                              <input
+                                type="text"
+                                value={editBarberExternalId}
+                                onChange={(e) => setEditBarberExternalId(e.target.value)}
+                                className="w-24 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-sm focus:border-brand"
+                                placeholder="Cód/ID"
+                              />
+                              <select
+                                value={editBarberUnit}
+                                onChange={(e) => setEditBarberUnit(e.target.value)}
+                                className="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-sm"
+                              >
+                                {units.map(u => (
+                                  <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                              </select>
+                              <button onClick={() => handleUpdateBarber(barber.id)} className="text-emerald-500 p-1 bg-emerald-500/10 rounded ml-1"><Check className="w-4 h-4" /></button>
+                              <button onClick={() => setEditingBarberId(null)} className="text-red-500 p-1 bg-red-500/10 rounded"><X className="w-4 h-4" /></button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-zinc-300">{barber.name}</span>
+                              <span className="text-xs text-zinc-500">
+                                {bUnit?.name || '---'}
+                                {barber.externalId ? ` • ID: ${barber.externalId}` : ''}
+                              </span>
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => startEditingBarber(barber)} className="text-zinc-500 hover:text-brand transition-colors p-1">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => onRemoveBarber(barber.id)} className="text-zinc-500 hover:text-red-500 transition-colors p-1">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
