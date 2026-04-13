@@ -71,6 +71,62 @@ export default function App() {
     };
 
     loadData();
+
+    // Set up Realtime subscriptions
+    const channel = supabase.channel('realtime-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'referral_records' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setRecords(prev => {
+              if (prev.some(r => r.id === payload.new.id)) return prev;
+              return [payload.new as ReferralRecord, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setRecords(prev => prev.map(r => r.id === payload.new.id ? payload.new as ReferralRecord : r));
+          } else if (payload.eventType === 'DELETE') {
+            setRecords(prev => prev.filter(r => r.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'barbers' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setBarbers(prev => {
+              if (prev.some(b => b.id === payload.new.id)) return prev;
+              return [...prev, payload.new as Barber];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setBarbers(prev => prev.map(b => b.id === payload.new.id ? payload.new as Barber : b));
+          } else if (payload.eventType === 'DELETE') {
+            setBarbers(prev => prev.filter(b => b.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'units' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setUnits(prev => {
+              if (prev.some(u => u.id === payload.new.id)) return prev;
+              return [...prev, payload.new as Unit];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setUnits(prev => prev.map(u => u.id === payload.new.id ? payload.new as Unit : u));
+          } else if (payload.eventType === 'DELETE') {
+            setUnits(prev => prev.filter(u => u.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
 
