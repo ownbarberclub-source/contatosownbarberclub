@@ -35,7 +35,7 @@ export default function App() {
           id: crypto.randomUUID(),
           name: 'Administrador',
           email: 'ownbarberclub@gmail.com',
-          password: '123456',
+          password: 'AdministrativoOwn7.',
           isAdmin: true,
         };
         setUsers([defaultAdmin]);
