@@ -16,6 +16,7 @@ export interface ReferralRecord {
   contactsProvided?: string; // Mantido para compatibilidade com registros antigos
   contacts: ContactPerson[];
   createdAt: string;
+  createdByName?: string;
 }
 
 export interface User {

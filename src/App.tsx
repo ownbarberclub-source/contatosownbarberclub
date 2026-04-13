@@ -223,6 +223,7 @@ export default function App() {
         ...recordData,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
+        createdByName: currentUser.name,
       };
       setRecords([newRecord, ...records]);
       await supabase.from('referral_records').insert([newRecord]);
@@ -558,6 +559,7 @@ export default function App() {
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Lead</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Telefone</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Barbeiro</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Registrado Por</th>
                         <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Assinatura</th>
                         <th className="px-6 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Ações</th>
@@ -580,6 +582,17 @@ export default function App() {
                               </a>
                             </td>
                             <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">{batch.barberName}</td>
+                            <td className="px-6 py-3 whitespace-nowrap">
+                              {batch.createdByName ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-800 text-zinc-300">
+                                  {batch.createdByName}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-800/50 text-zinc-500">
+                                  Sistema
+                                </span>
+                              )}
+                            </td>
                             <td className="px-6 py-3 whitespace-nowrap text-center">
                               <button
                                 onClick={() => toggleContactField(batch.id, contact.id, 'called')}
