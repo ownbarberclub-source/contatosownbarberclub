@@ -131,8 +131,8 @@ export default function App() {
     }
   };
 
-  const handleAddBarber = async (name: string, unitId: string, externalId: string) => {
-    const newBarber = { id: crypto.randomUUID(), name, unit_id: unitId, externalId: externalId || undefined };
+  const handleAddBarber = async (name: string, unitId: string, cpf: string) => {
+    const newBarber = { id: crypto.randomUUID(), name, unit_id: unitId, cpf };
     setBarbers([...barbers, newBarber]);
     await supabase.from('barbers').insert([newBarber]);
   };

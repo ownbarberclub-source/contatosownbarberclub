@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Unit, Barber, ReferralRecord, User } from '../types';
+import { formatCPF } from '../utils';
 import { Building2, Scissors, CalendarDays, Plus, Trash2, Trophy, Edit2, Check, X } from 'lucide-react';
 
 interface BarbersTabProps {
@@ -9,7 +10,7 @@ interface BarbersTabProps {
   currentUser: User;
   onAddUnit: (name: string) => void;
   onRemoveUnit: (id: string) => void;
-  onAddBarber: (name: string, unitId: string, externalId: string) => void;
+  onAddBarber: (name: string, unitId: string, cpf: string) => void;
   onUpdateBarber: (id: string, data: Partial<Barber>) => void;
   onRemoveBarber: (id: string) => void;
 }
@@ -18,12 +19,12 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
   const [newUnitName, setNewUnitName] = useState('');
   const [newBarberName, setNewBarberName] = useState('');
   const [selectedUnitForBarber, setSelectedUnitForBarber] = useState('');
-  const [newBarberExternalId, setNewBarberExternalId] = useState('');
+  const [newBarberCpf, setNewBarberCpf] = useState('');
   
   const [editingBarberId, setEditingBarberId] = useState<string | null>(null);
   const [editBarberName, setEditBarberName] = useState('');
   const [editBarberUnit, setEditBarberUnit] = useState('');
-  const [editBarberExternalId, setEditBarberExternalId] = useState('');
+  const [editBarberCpf, setEditBarberCpf] = useState('');
   
   // Month selector YYYY-MM
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -40,25 +41,31 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
 
   const handleAddBarber = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newBarberName.trim() || !selectedUnitForBarber) return;
-    onAddBarber(newBarberName.trim(), selectedUnitForBarber, newBarberExternalId.trim());
+    if (!newBarberName.trim() || !selectedUnitForBarber || newBarberCpf.length < 14) {
+      alert('Preencha os dados e informe um CPF válido.');
+      return;
+    }
+    onAddBarber(newBarberName.trim(), selectedUnitForBarber, newBarberCpf.trim());
     setNewBarberName('');
-    setNewBarberExternalId('');
+    setNewBarberCpf('');
   };
 
   const startEditingBarber = (barber: Barber) => {
     setEditingBarberId(barber.id);
     setEditBarberName(barber.name);
     setEditBarberUnit(barber.unit_id);
-    setEditBarberExternalId(barber.externalId || '');
+    setEditBarberCpf(barber.cpf || '');
   };
 
   const handleUpdateBarber = (id: string) => {
-    if (!editBarberName.trim() || !editBarberUnit) return;
+    if (!editBarberName.trim() || !editBarberUnit || editBarberCpf.length < 14) {
+      alert('Preencha os dados e informe um CPF válido.');
+      return;
+    }
     onUpdateBarber(id, {
       name: editBarberName.trim(),
       unit_id: editBarberUnit,
-      externalId: editBarberExternalId.trim() || undefined
+      cpf: editBarberCpf.trim()
     });
     setEditingBarberId(null);
   };
@@ -166,9 +173,11 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                   />
                   <input
                     type="text"
-                    value={newBarberExternalId}
-                    onChange={(e) => setNewBarberExternalId(e.target.value)}
-                    placeholder="ID/Cód Externo (Opcional)"
+                    required
+                    value={newBarberCpf}
+                    onChange={(e) => setNewBarberCpf(formatCPF(e.target.value))}
+                    placeholder="CPF do Barbeiro"
+                    maxLength={14}
                     className="w-48 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:ring-2 focus:ring-brand/50 focus:border-brand"
                   />
                   <select
@@ -208,10 +217,12 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                               />
                               <input
                                 type="text"
-                                value={editBarberExternalId}
-                                onChange={(e) => setEditBarberExternalId(e.target.value)}
-                                className="w-24 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-sm focus:border-brand"
-                                placeholder="Cód/ID"
+                                required
+                                value={editBarberCpf}
+                                onChange={(e) => setEditBarberCpf(formatCPF(e.target.value))}
+                                maxLength={14}
+                                className="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-sm focus:border-brand"
+                                placeholder="CPF"
                               />
                               <select
                                 value={editBarberUnit}
@@ -232,7 +243,7 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                               <span className="text-sm font-medium text-zinc-300">{barber.name}</span>
                               <span className="text-xs text-zinc-500">
                                 {bUnit?.name || '---'}
-                                {barber.externalId ? ` • ID: ${barber.externalId}` : ''}
+                                {barber.cpf ? ` • CPF: ${barber.cpf}` : ''}
                               </span>
                             </div>
                             <div className="flex gap-2">
