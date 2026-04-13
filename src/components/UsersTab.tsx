@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Shield, User as UserIcon, Plus, Trash2, Key, Check, X } from 'lucide-react';
+import { Shield, User as UserIcon, Plus, Trash2, Key, Check, X, Edit2 } from 'lucide-react';
 
 interface UsersTabProps {
   users: User[];
@@ -210,9 +210,9 @@ export function UsersTab({ users, onAddUser, onRemoveUser, onUpdateUser, current
                         <button
                           onClick={() => startEditing(user)}
                           className="text-zinc-500 hover:text-brand transition-colors p-1"
-                          title="Editar Usuário"
+                          title="Editar Usuário (Acessos e Dados)"
                         >
-                          <Key className="w-4 h-4" />
+                          <Edit2 className="w-4 h-4" />
                         </button>
                         {user.id !== currentUser.id && (
                           <button
