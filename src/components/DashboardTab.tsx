@@ -29,8 +29,14 @@ export function DashboardTab({ records }: DashboardTabProps) {
     end.setHours(23, 59, 59, 999);
 
     return records.filter(record => {
-      if (!record.createdAt) return false;
-      const recordDate = new Date(record.createdAt);
+      // Para leads antigos de antes da atualização do sistema, que não tem data, 
+      // assumimos uma data antiga fixa para poderem entrar em filtros bem antigos.
+      let recordDate;
+      if (!record.createdAt) {
+        recordDate = new Date('2024-01-01');
+      } else {
+        recordDate = new Date(record.createdAt);
+      }
       return recordDate >= start && recordDate <= end;
     });
   }, [records, startDate, endDate]);
