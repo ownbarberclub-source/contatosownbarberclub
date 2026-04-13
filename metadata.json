@@ -1,0 +1,5 @@
+{
+  "name": "Barber Contacts Control",
+  "description": "Sistema para controle de contatos passados por clientes, barbeiros responsáveis e status de assinatura.",
+  "requestFramePermissions": []
+}

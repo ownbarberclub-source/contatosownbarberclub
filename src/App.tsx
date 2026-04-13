@@ -1,0 +1,517 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Plus, Users, UserPlus, CheckCircle2, XCircle, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import Logo from './assets/logo.png';
+import { ReferralRecord, ContactPerson, User } from './types';
+import { formatCPF, cleanCPF, cleanPhone } from './utils';
+import { RecordModal } from './components/RecordModal';
+import { Login } from './components/Login';
+import { UsersTab } from './components/UsersTab';
+import { getStoredUsers, saveUser, removeUser, getStoredCurrentUser, saveCurrentUser } from './auth';
+import { exportToExcel, exportToPDF } from './exportUtils';
+import { supabase } from './supabaseClient';
+
+export default function App() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [activeTab, setActiveTab] = useState<'leads' | 'users'>('leads');
+  const [loginError, setLoginError] = useState('');
+
+  const [records, setRecords] = useState<ReferralRecord[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<ReferralRecord | null>(null);
+  const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
+
+  // Load data from Supabase
+  useEffect(() => {
+    const loadData = async () => {
+      const storedUsers = await getStoredUsers();
+      if (storedUsers.length === 0) {
+        const defaultAdmin: User = {
+          id: crypto.randomUUID(),
+          name: 'Administrador',
+          email: 'ownbarberclub@gmail.com',
+          password: '123456',
+          isAdmin: true,
+        };
+        setUsers([defaultAdmin]);
+        await saveUser(defaultAdmin);
+      } else {
+        setUsers(storedUsers);
+      }
+
+      const { data: recordsData, error } = await supabase
+        .from('referral_records')
+        .select('*')
+        .order('createdAt', { ascending: false });
+        
+      if (!error && recordsData) {
+        setRecords(recordsData);
+      } else if (error) {
+        console.error('Failed to fetch records', error);
+      }
+
+      const storedCurrentUser = getStoredCurrentUser();
+      if (storedCurrentUser) {
+        setCurrentUser(storedCurrentUser);
+      }
+    };
+
+    loadData();
+  }, []);
+
+
+  const handleLogin = (email: string, pass: string) => {
+    const user = users.find(u => u.email === email && u.password === pass);
+    if (user) {
+      setCurrentUser(user);
+      saveCurrentUser(user);
+      setLoginError('');
+    } else {
+      setLoginError('E-mail ou senha incorretos.');
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    saveCurrentUser(null);
+    setActiveTab('leads');
+  };
+
+  const handleAddUser = async (newUser: Omit<User, 'id'>) => {
+    if (users.some(u => u.email === newUser.email)) {
+      alert('Já existe um usuário com este e-mail.');
+      return;
+    }
+    const user = { ...newUser, id: crypto.randomUUID() };
+    setUsers([...users, user]);
+    await saveUser(user);
+  };
+
+  const handleRemoveUser = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover este usuário?')) {
+      setUsers(users.filter(u => u.id !== id));
+      await removeUser(id);
+    }
+  };
+
+  const handleSaveRecord = async (recordData: Omit<ReferralRecord, 'id' | 'createdAt'>) => {
+    if (editingRecord) {
+      const updatedRecord = { ...editingRecord, ...recordData };
+      setRecords(records.map(r => 
+        r.id === editingRecord.id 
+          ? updatedRecord
+          : r
+      ));
+      await supabase.from('referral_records').update(updatedRecord).eq('id', updatedRecord.id);
+    } else {
+      const newRecord: ReferralRecord = {
+        ...recordData,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+      };
+      setRecords([newRecord, ...records]);
+      await supabase.from('referral_records').insert([newRecord]);
+    }
+  };
+
+  const toggleContactField = async (recordId: string, contactId: string, field: 'called' | 'subscriptionClosed') => {
+    let updatedRecordToSave: ReferralRecord | null = null;
+    
+    setRecords(records.map(record => {
+      if (record.id === recordId) {
+        const newContacts = record.contacts.map(contact => {
+          if (contact.id === contactId) {
+            const newValue = !contact[field];
+            const updates: Partial<ContactPerson> = { [field]: newValue };
+            if (field === 'called') {
+              const timeString = new Date().toISOString().split('T')[1] || '00:00:00.000Z';
+              updates.calledAt = newValue ? `${selectedDate}T${timeString}` : undefined;
+            }
+            return { ...contact, ...updates };
+          }
+          return contact;
+        });
+        
+        const updated = { ...record, contacts: newContacts };
+        updatedRecordToSave = updated;
+        return updated;
+      }
+      return record;
+    }));
+
+    if (updatedRecordToSave) {
+      // @ts-ignore
+      await supabase.from('referral_records').update({ contacts: updatedRecordToSave.contacts }).eq('id', updatedRecordToSave.id);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este registro?')) {
+      setRecords(records.filter(r => r.id !== id));
+      await supabase.from('referral_records').delete().eq('id', id);
+    }
+  };
+
+  const openEditModal = (record: ReferralRecord) => {
+    setEditingRecord(record);
+    setIsModalOpen(true);
+  };
+
+  const openNewModal = () => {
+    setEditingRecord(null);
+    setPreFilledClient(null);
+    setIsModalOpen(true);
+  };
+
+  const openNewModalWithClient = (cpf: string, name: string) => {
+    setEditingRecord(null);
+    setPreFilledClient({ cpf, name });
+    setIsModalOpen(true);
+  };
+
+  const clientGroups = useMemo(() => {
+    const groups: Record<string, {
+      clientName: string;
+      clientCpf: string;
+      batches: ReferralRecord[];
+    }> = {};
+
+    records.forEach(record => {
+      const cpf = cleanCPF(record.clientCpf);
+      if (!groups[cpf]) {
+        groups[cpf] = {
+          clientName: record.clientName,
+          clientCpf: record.clientCpf,
+          batches: [],
+        };
+      }
+      groups[cpf].batches.push(record);
+    });
+
+    return Object.values(groups);
+  }, [records]);
+
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery) return clientGroups;
+    const query = searchQuery.toLowerCase();
+    const cleanQuery = cleanCPF(searchQuery);
+    
+    return clientGroups.filter(group => {
+      const matchName = group.clientName.toLowerCase().includes(query);
+      const matchCpf = cleanQuery.length > 0 && cleanCPF(group.clientCpf).includes(cleanQuery);
+      const matchBarber = group.batches.some(b => b.barberName.toLowerCase().includes(query));
+      const matchLead = group.batches.some(b => b.contacts?.some(c => c.name.toLowerCase().includes(query) || cleanPhone(c.phone).includes(cleanQuery)));
+      
+      return matchName || matchCpf || matchBarber || matchLead;
+    });
+  }, [clientGroups, searchQuery]);
+
+  const stats = useMemo(() => {
+    const allContacts = records.flatMap(r => r.contacts || []);
+
+    return {
+      totalClients: new Set(records.map(r => cleanCPF(r.clientCpf))).size,
+      totalLeads: allContacts.length,
+      leadsToCall: allContacts.filter(c => !c.called).length, // Global total
+      leadsCalled: allContacts.filter(c => c.called && c.calledAt?.split('T')[0] === selectedDate).length, // Filtered by day
+      totalSubscriptions: allContacts.filter(c => c.subscriptionClosed).length, // Global total
+    };
+  }, [records, selectedDate]);
+
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} error={loginError} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-brand/30">
+      {/* Header */}
+      <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <img src={Logo} alt="OWN Barber Club" className="w-10 h-10 object-contain brightness-0 invert" />
+              <h1 className="text-xl font-bold tracking-tight text-zinc-100 hidden sm:block uppercase italic">
+                OWN <span className="text-brand">BARBER</span> CLUB
+              </h1>
+            </div>
+            
+            <nav className="flex items-center gap-1">
+              <button
+                onClick={() => setActiveTab('leads')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'leads' 
+                    ? 'bg-zinc-800 text-brand' 
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                }`}
+              >
+                Leads
+              </button>
+              {currentUser.isAdmin && (
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'users' 
+                      ? 'bg-zinc-800 text-brand' 
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  }`}
+                >
+                  Usuários
+                </button>
+              )}
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 mr-2">
+              <span className="text-sm text-zinc-400">Olá, <strong className="text-zinc-200">{currentUser.name}</strong></span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-zinc-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
+              title="Sair"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {activeTab === 'users' ? (
+          <UsersTab 
+            users={users} 
+            onAddUser={handleAddUser} 
+            onRemoveUser={handleRemoveUser} 
+            currentUser={currentUser} 
+          />
+        ) : (
+          <>
+            {/* Stats & Filter Row */}
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
+                  <CalendarDays className="w-5 h-5 text-brand" />
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-transparent border-none text-zinc-100 focus:outline-none text-sm font-medium cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex-1 w-full md:w-auto flex flex-col md:flex-row gap-3 justify-end">
+                  <div className="w-full md:w-80 relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-zinc-500" />
+                    </div>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Buscar por nome, barbeiro ou CPF..."
+                      className="block w-full pl-10 pr-3 py-2.5 border border-zinc-800 rounded-xl leading-5 bg-zinc-900 text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => exportToPDF(records)}
+                      className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
+                      title="Exportar para PDF"
+                    >
+                      <FileText className="w-4 h-4 text-red-400" />
+                      <span className="hidden lg:inline">PDF</span>
+                    </button>
+                    <button
+                      onClick={() => exportToExcel(records)}
+                      className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
+                      title="Exportar para Excel"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                      <span className="hidden lg:inline">Excel</span>
+                    </button>
+                    <button
+                      onClick={openNewModal}
+                      className="flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden sm:inline">Novo Registro</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <Users className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">Clientes</p>
+              </div>
+              <p className="text-2xl font-bold text-zinc-100">{stats.totalClients}</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <UserPlus className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">Total Leads</p>
+              </div>
+              <p className="text-2xl font-bold text-zinc-100">{stats.totalLeads}</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-blue-400">
+                <PhoneCall className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">Para Chamar</p>
+              </div>
+              <p className="text-2xl font-bold text-blue-400">{stats.leadsToCall}</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <PhoneForwarded className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">Chamados</p>
+              </div>
+              <p className="text-2xl font-bold text-emerald-400">{stats.leadsCalled}</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-brand">
+                <CheckCircle2 className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">Assinaturas</p>
+              </div>
+              <p className="text-2xl font-bold text-brand">{stats.totalSubscriptions}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Data Sections */}
+        <div className="space-y-6">
+          {filteredGroups.length === 0 ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500">
+              {searchQuery ? 'Nenhum cliente ou lead encontrado para esta busca.' : 'Nenhum cliente cadastrado ainda.'}
+            </div>
+          ) : (
+            filteredGroups.map(group => (
+              <div key={group.clientCpf} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
+                {/* Header */}
+                <div className="p-6 border-b border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900/50">
+                  <div>
+                    <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-3">
+                      {group.clientName}
+                    </h3>
+                    <p className="text-sm text-zinc-400 mt-1">CPF: {group.clientCpf}</p>
+                  </div>
+                  <button
+                    onClick={() => openNewModalWithClient(group.clientCpf, group.clientName)}
+                    className="flex items-center gap-2 bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Leads
+                  </button>
+                </div>
+                
+                {/* Leads Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-zinc-800">
+                    <thead className="bg-zinc-950/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Lead</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Telefone</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Barbeiro</th>
+                        <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Assinatura</th>
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50 bg-zinc-900">
+                      {group.batches.flatMap(batch => 
+                        (batch.contacts || []).map(contact => (
+                          <tr key={contact.id} className="hover:bg-zinc-800/30 transition-colors">
+                            <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-zinc-200">{contact.name}</td>
+                            <td className="px-6 py-3 whitespace-nowrap">
+                              <a
+                                href={`https://wa.me/55${cleanPhone(contact.phone)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 px-2.5 py-1 rounded-md"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                {contact.phone}
+                              </a>
+                            </td>
+                            <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">{batch.barberName}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-center">
+                              <button
+                                onClick={() => toggleContactField(batch.id, contact.id, 'called')}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  contact.called 
+                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20' 
+                                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700'
+                                }`}
+                              >
+                                {contact.called ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                                {contact.called ? 'Chamado' : 'Pendente'}
+                              </button>
+                            </td>
+                            <td className="px-6 py-3 whitespace-nowrap text-center">
+                              <button
+                                onClick={() => toggleContactField(batch.id, contact.id, 'subscriptionClosed')}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  contact.subscriptionClosed 
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20' 
+                                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700'
+                                }`}
+                              >
+                                {contact.subscriptionClosed ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                                {contact.subscriptionClosed ? 'Fechada' : 'Pendente'}
+                              </button>
+                            </td>
+                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => openEditModal(batch)}
+                                className="text-zinc-500 hover:text-brand transition-colors p-1"
+                                title="Editar Lote"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(batch.id)}
+                                className="text-zinc-500 hover:text-red-500 transition-colors p-1 ml-2"
+                                title="Excluir Lote"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                      {group.batches.every(b => !b.contacts || b.contacts.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-sm text-zinc-500">
+                            Nenhum lead registrado para este cliente.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        </>
+        )}
+      </main>
+
+      <RecordModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveRecord}
+        initialData={editingRecord}
+        records={records}
+        preFilledClient={preFilledClient}
+      />
+    </div>
+  );
+}
