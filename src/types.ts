@@ -24,6 +24,7 @@ export interface User {
   email: string;
   password?: string;
   isAdmin: boolean;
+  permissions?: string[];
 }
 
 export interface Unit {

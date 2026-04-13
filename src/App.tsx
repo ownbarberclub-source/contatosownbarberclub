@@ -361,29 +361,29 @@ export default function App() {
               >
                 Leads
               </button>
+              {(currentUser.isAdmin || currentUser.permissions?.includes('view_ranking')) && (
+                <button
+                  onClick={() => setActiveTab('barbeiros')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'barbeiros' 
+                      ? 'bg-zinc-800 text-brand' 
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  }`}
+                >
+                  Barbeiros & Rank
+                </button>
+              )}
               {currentUser.isAdmin && (
-                <>
-                  <button
-                    onClick={() => setActiveTab('barbeiros')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === 'barbeiros' 
-                        ? 'bg-zinc-800 text-brand' 
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    Barbeiros & Rank
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('users')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === 'users' 
-                        ? 'bg-zinc-800 text-brand' 
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    Usuários
-                  </button>
-                </>
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'users' 
+                      ? 'bg-zinc-800 text-brand' 
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  }`}
+                >
+                  Usuários
+                </button>
               )}
             </nav>
           </div>
@@ -454,22 +454,26 @@ export default function App() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => exportToPDF(records)}
-                      className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
-                      title="Exportar para PDF"
-                    >
-                      <FileText className="w-4 h-4 text-red-400" />
-                      <span className="hidden lg:inline">PDF</span>
-                    </button>
-                    <button
-                      onClick={() => exportToExcel(records)}
-                      className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
-                      title="Exportar para Excel"
-                    >
-                      <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                      <span className="hidden lg:inline">Excel</span>
-                    </button>
+                    {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
+                      <>
+                        <button
+                          onClick={() => exportToPDF(records)}
+                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
+                          title="Exportar para PDF"
+                        >
+                          <FileText className="w-4 h-4 text-red-400" />
+                          <span className="hidden lg:inline">PDF</span>
+                        </button>
+                        <button
+                          onClick={() => exportToExcel(records)}
+                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
+                          title="Exportar para Excel"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                          <span className="hidden lg:inline">Excel</span>
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={openNewModal}
                       className="flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
@@ -610,13 +614,15 @@ export default function App() {
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
-                              <button
-                                onClick={() => handleDelete(batch.id)}
-                                className="text-zinc-500 hover:text-red-500 transition-colors p-1 ml-2"
-                                title="Excluir Lote"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {(currentUser.isAdmin || currentUser.permissions?.includes('delete_records')) && (
+                                <button
+                                  onClick={() => handleDelete(batch.id)}
+                                  className="text-zinc-500 hover:text-red-500 transition-colors p-1 ml-2"
+                                  title="Excluir Lote"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
