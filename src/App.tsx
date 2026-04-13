@@ -99,6 +99,16 @@ export default function App() {
     }
   };
 
+  const handleUpdateUser = async (id: string, data: Partial<User>) => {
+    const updatedUser = users.find(u => u.id === id);
+    if (!updatedUser) return;
+    
+    const newUser = { ...updatedUser, ...data };
+    setUsers(users.map(u => u.id === id ? newUser : u));
+    // @ts-ignore
+    await supabase.from('users').update(data).eq('id', id);
+  };
+
   const handleSaveRecord = async (recordData: Omit<ReferralRecord, 'id' | 'createdAt'>) => {
     if (editingRecord) {
       const updatedRecord = { ...editingRecord, ...recordData };
@@ -287,6 +297,7 @@ export default function App() {
             users={users} 
             onAddUser={handleAddUser} 
             onRemoveUser={handleRemoveUser} 
+            onUpdateUser={handleUpdateUser}
             currentUser={currentUser} 
           />
         ) : (

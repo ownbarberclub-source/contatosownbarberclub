@@ -1,19 +1,30 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Shield, User as UserIcon, Plus, Trash2 } from 'lucide-react';
+import { Shield, User as UserIcon, Plus, Trash2, Key, Check, X } from 'lucide-react';
 
 interface UsersTabProps {
   users: User[];
   onAddUser: (user: Omit<User, 'id'>) => void;
   onRemoveUser: (id: string) => void;
+  onUpdateUser: (id: string, data: Partial<User>) => void;
   currentUser: User;
 }
 
-export function UsersTab({ users, onAddUser, onRemoveUser, currentUser }: UsersTabProps) {
+export function UsersTab({ users, onAddUser, onRemoveUser, onUpdateUser, currentUser }: UsersTabProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editPassword, setEditPassword] = useState('');
+
+  const handleUpdatePassword = (id: string) => {
+    if (!editPassword.trim()) return;
+    onUpdateUser(id, { password: editPassword });
+    setEditingUserId(null);
+    setEditPassword('');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,14 +147,49 @@ export function UsersTab({ users, onAddUser, onRemoveUser, currentUser }: UsersT
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {user.id !== currentUser.id && (
-                      <button
-                        onClick={() => onRemoveUser(user.id)}
-                        className="text-zinc-500 hover:text-red-500 transition-colors p-1"
-                        title="Remover Usuário"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    {editingUserId === user.id ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <input
+                          type="text"
+                          placeholder="Nova senha"
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          className="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-xs w-28 focus:outline-none focus:border-brand"
+                        />
+                        <button
+                          onClick={() => handleUpdatePassword(user.id)}
+                          className="text-emerald-500 hover:text-emerald-400 transition-colors p-1 bg-emerald-500/10 rounded"
+                          title="Salvar senha"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => { setEditingUserId(null); setEditPassword(''); }}
+                          className="text-red-500 hover:text-red-400 transition-colors p-1 bg-red-500/10 rounded"
+                          title="Cancelar"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => { setEditingUserId(user.id); setEditPassword(''); }}
+                          className="text-zinc-500 hover:text-brand transition-colors p-1"
+                          title="Alterar Senha"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                        {user.id !== currentUser.id && (
+                          <button
+                            onClick={() => onRemoveUser(user.id)}
+                            className="text-zinc-500 hover:text-red-500 transition-colors p-1"
+                            title="Remover Usuário"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </td>
                 </tr>
