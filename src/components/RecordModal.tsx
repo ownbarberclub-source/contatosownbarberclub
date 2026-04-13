@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
-import { ReferralRecord, ContactPerson } from '../types';
+import { ReferralRecord, ContactPerson, Barber } from '../types';
 import { formatCPF, formatPhone, cleanCPF, cleanPhone } from '../utils';
 
 interface RecordModalProps {
@@ -9,13 +9,14 @@ interface RecordModalProps {
   onSave: (record: Omit<ReferralRecord, 'id' | 'createdAt'>) => void;
   initialData?: ReferralRecord | null;
   records: ReferralRecord[];
+  barbers: Barber[];
   preFilledClient?: { cpf: string; name: string } | null;
 }
 
-export function RecordModal({ isOpen, onClose, onSave, initialData, records, preFilledClient }: RecordModalProps) {
+export function RecordModal({ isOpen, onClose, onSave, initialData, records, barbers, preFilledClient }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
-  const [barberName, setBarberName] = useState('');
+  const [barberId, setBarberId] = useState('');
   const [contacts, setContacts] = useState<ContactPerson[]>([]);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
@@ -26,24 +27,34 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, pre
     if (initialData) {
       setClientName(initialData.clientName);
       setClientCpf(initialData.clientCpf);
-      setBarberName(initialData.barberName);
+      
+      // Match barberId or figure it out from barberName for old records if possible
+      if (initialData.barberId) {
+        setBarberId(initialData.barberId);
+      } else if (initialData.barberName) {
+        const found = barbers.find(b => b.name === initialData.barberName);
+        setBarberId(found ? found.id : '');
+      } else {
+        setBarberId('');
+      }
+
       setContacts(initialData.contacts || []);
     } else if (preFilledClient) {
       setClientCpf(preFilledClient.cpf);
       setClientName(preFilledClient.name);
-      setBarberName('');
+      setBarberId('');
       setContacts([]);
       setNewContactName('');
       setNewContactPhone('');
     } else {
       setClientName('');
       setClientCpf('');
-      setBarberName('');
+      setBarberId('');
       setContacts([]);
       setNewContactName('');
       setNewContactPhone('');
     }
-  }, [initialData, preFilledClient, isOpen]);
+  }, [initialData, preFilledClient, isOpen, barbers]);
 
   // Auto-fill when typing CPF
   useEffect(() => {
@@ -121,10 +132,18 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, pre
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!barberId) {
+      alert("Por favor, selecione um barbeiro para continuar.");
+      return;
+    }
+    
+    const selectedBarber = barbers.find(b => b.id === barberId);
+    
     onSave({
       clientName,
       clientCpf,
-      barberName,
+      barberId: selectedBarber?.id || '',
+      barberName: selectedBarber?.name || '',
       contacts,
     });
     onClose();
@@ -180,14 +199,17 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, pre
               <label className="block text-sm font-medium text-zinc-300 mb-1.5">
                 Barbeiro Solicitante
               </label>
-              <input
-                type="text"
+              <select
                 required
-                value={barberName}
-                onChange={(e) => setBarberName(e.target.value)}
+                value={barberId}
+                onChange={(e) => setBarberId(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all"
-                placeholder="Ex: Marcos"
-              />
+              >
+                <option value="">Selecione um barbeiro...</option>
+                {barbers.map(barber => (
+                  <option key={barber.id} value={barber.id}>{barber.name}</option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-3">

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Users, UserPlus, CheckCircle2, XCircle, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import Logo from './assets/logo.png';
-import { ReferralRecord, ContactPerson, User } from './types';
+import { ReferralRecord, ContactPerson, User, Unit, Barber } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
 import { RecordModal } from './components/RecordModal';
 import { Login } from './components/Login';
 import { UsersTab } from './components/UsersTab';
+import { BarbersTab } from './components/BarbersTab';
 import { getStoredUsers, saveUser, removeUser, getStoredCurrentUser, saveCurrentUser } from './auth';
 import { exportToExcel, exportToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
@@ -13,7 +14,9 @@ import { supabase } from './supabaseClient';
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [activeTab, setActiveTab] = useState<'leads' | 'users'>('leads');
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [barbers, setBarbers] = useState<Barber[]>([]);
+  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbers'>('leads');
   const [loginError, setLoginError] = useState('');
 
   const [records, setRecords] = useState<ReferralRecord[]>([]);
@@ -54,6 +57,12 @@ export default function App() {
       } else if (error) {
         console.error('Failed to fetch records', error);
       }
+
+      const { data: unitsData } = await supabase.from('units').select('*');
+      if (unitsData) setUnits(unitsData);
+
+      const { data: barbersData } = await supabase.from('barbers').select('*');
+      if (barbersData) setBarbers(barbersData);
 
       const storedCurrentUser = getStoredCurrentUser();
       if (storedCurrentUser) {
@@ -107,6 +116,32 @@ export default function App() {
     setUsers(users.map(u => u.id === id ? newUser : u));
     // @ts-ignore
     await supabase.from('users').update(data).eq('id', id);
+  };
+
+  const handleAddUnit = async (name: string) => {
+    const newUnit = { id: crypto.randomUUID(), name };
+    setUnits([...units, newUnit]);
+    await supabase.from('units').insert([newUnit]);
+  };
+
+  const handleRemoveUnit = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover esta unidade? Barbeiros associados a ela ficarão órfãos.')) {
+      setUnits(units.filter(u => u.id !== id));
+      await supabase.from('units').delete().eq('id', id);
+    }
+  };
+
+  const handleAddBarber = async (name: string, unitId: string) => {
+    const newBarber = { id: crypto.randomUUID(), name, unit_id: unitId };
+    setBarbers([...barbers, newBarber]);
+    await supabase.from('barbers').insert([newBarber]);
+  };
+
+  const handleRemoveBarber = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover este barbeiro?')) {
+      setBarbers(barbers.filter(b => b.id !== id));
+      await supabase.from('barbers').delete().eq('id', id);
+    }
   };
 
   const handleSaveRecord = async (recordData: Omit<ReferralRecord, 'id' | 'createdAt'>) => {
@@ -262,16 +297,28 @@ export default function App() {
                 Leads
               </button>
               {currentUser.isAdmin && (
-                <button
-                  onClick={() => setActiveTab('users')}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'users' 
-                      ? 'bg-zinc-800 text-brand' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
-                >
-                  Usuários
-                </button>
+                <>
+                  <button
+                    onClick={() => setActiveTab('barbeiros')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'barbeiros' 
+                        ? 'bg-zinc-800 text-brand' 
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    Barbeiros & Rank
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('users')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'users' 
+                        ? 'bg-zinc-800 text-brand' 
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    Usuários
+                  </button>
+                </>
               )}
             </nav>
           </div>
@@ -299,6 +346,17 @@ export default function App() {
             onRemoveUser={handleRemoveUser} 
             onUpdateUser={handleUpdateUser}
             currentUser={currentUser} 
+          />
+        ) : activeTab === 'barbeiros' ? (
+          <BarbersTab
+            units={units}
+            barbers={barbers}
+            records={records}
+            currentUser={currentUser}
+            onAddUnit={handleAddUnit}
+            onRemoveUnit={handleRemoveUnit}
+            onAddBarber={handleAddBarber}
+            onRemoveBarber={handleRemoveBarber}
           />
         ) : (
           <>
@@ -521,6 +579,7 @@ export default function App() {
         onSave={handleSaveRecord}
         initialData={editingRecord}
         records={records}
+        barbers={barbers}
         preFilledClient={preFilledClient}
       />
     </div>
