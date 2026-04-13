@@ -7,6 +7,7 @@ import { RecordModal } from './components/RecordModal';
 import { Login } from './components/Login';
 import { UsersTab } from './components/UsersTab';
 import { BarbersTab } from './components/BarbersTab';
+import { DashboardTab } from './components/DashboardTab';
 import { getStoredUsers, saveUser, removeUser, getStoredCurrentUser, saveCurrentUser } from './auth';
 import { exportToExcel, exportToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
@@ -16,7 +17,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
-  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbers'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbers' | 'dashboard'>('leads');
   const [loginError, setLoginError] = useState('');
 
   const [records, setRecords] = useState<ReferralRecord[]>([]);
@@ -386,6 +387,18 @@ export default function App() {
                   Usuários
                 </button>
               )}
+              {currentUser.isAdmin && (
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'dashboard' 
+                      ? 'bg-zinc-800 text-brand' 
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  }`}
+                >
+                  Analytics
+                </button>
+              )}
             </nav>
           </div>
 
@@ -425,6 +438,8 @@ export default function App() {
             onUpdateBarber={handleUpdateBarber}
             onRemoveBarber={handleRemoveBarber}
           />
+        ) : activeTab === 'dashboard' && currentUser.isAdmin ? (
+          <DashboardTab records={records} />
         ) : (
           <>
             {/* Stats & Filter Row */}
