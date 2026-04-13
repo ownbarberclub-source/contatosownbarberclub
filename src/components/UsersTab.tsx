@@ -24,6 +24,8 @@ export function UsersTab({ users, onAddUser, onRemoveUser, onUpdateUser, current
   const [permissions, setPermissions] = useState<string[]>([]);
   
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editIsAdmin, setEditIsAdmin] = useState(false);
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
@@ -38,6 +40,8 @@ export function UsersTab({ users, onAddUser, onRemoveUser, onUpdateUser, current
 
   const startEditing = (user: User) => {
     setEditingUserId(user.id);
+    setEditName(user.name);
+    setEditEmail(user.email);
     setEditPassword('');
     setEditIsAdmin(user.isAdmin);
     setEditPermissions(user.permissions || []);
@@ -45,6 +49,8 @@ export function UsersTab({ users, onAddUser, onRemoveUser, onUpdateUser, current
 
   const handleUpdateFullUser = (id: string) => {
     const data: Partial<User> = {
+      name: editName.trim(),
+      email: editEmail.trim(),
       isAdmin: editIsAdmin,
       permissions: editPermissions
     };
@@ -240,15 +246,35 @@ export function UsersTab({ users, onAddUser, onRemoveUser, onUpdateUser, current
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-medium text-zinc-400 mb-1.5">Nova Senha (Opcional)</label>
-                          <input
-                            type="password"
-                            placeholder="Deixe em branco para manter"
-                            value={editPassword}
-                            onChange={(e) => setEditPassword(e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:border-brand"
-                          />
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1.5">Nome</label>
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:border-brand"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1.5">E-mail</label>
+                            <input
+                              type="email"
+                              value={editEmail}
+                              onChange={(e) => setEditEmail(e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:border-brand"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1.5">Nova Senha (Opcional)</label>
+                            <input
+                              type="password"
+                              placeholder="Deixe em branco para manter a atual"
+                              value={editPassword}
+                              onChange={(e) => setEditPassword(e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:border-brand"
+                            />
+                          </div>
                         </div>
 
                         <div className="space-y-4">
