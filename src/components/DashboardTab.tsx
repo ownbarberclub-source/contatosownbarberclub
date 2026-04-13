@@ -21,12 +21,11 @@ export function DashboardTab({ records }: DashboardTabProps) {
 
   // Filtragem de records por data
   const filteredRecords = useMemo(() => {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
+    const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
     
-    // Configura o final do dia para garantir que inclua o dia atual completamente
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
 
     return records.filter(record => {
       // Para leads antigos de antes da atualização do sistema, que não tem data, 
