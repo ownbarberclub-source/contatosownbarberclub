@@ -367,7 +367,7 @@ export default function App() {
             <div className="flex items-center gap-3">
                <div className="w-10 h-10 bg-zinc-950 rounded-xl overflow-hidden border border-zinc-800 p-1.5 shadow-lg">
                   <img 
-                    src="https://ownbarberclublp.vercel.app/assets/logo.png" 
+                    src={Logo} 
                     alt="OWN" 
                     className="w-full h-full object-contain"
                   />
