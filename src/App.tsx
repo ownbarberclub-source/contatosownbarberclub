@@ -132,21 +132,9 @@ export default function App() {
 
     // Realtime
     const channel = supabase.channel('realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, (payload) => {
-        if (payload.eventType === 'INSERT') setRecords(prev => prev.some(r => r.id === (payload.new as any).id) ? prev : [payload.new as ReferralRecord, ...prev]);
-        else if (payload.eventType === 'UPDATE') setRecords(prev => prev.map(r => r.id === (payload.new as any).id ? payload.new as ReferralRecord : r));
-        else if (payload.eventType === 'DELETE') setRecords(prev => prev.filter(r => r.id !== (payload.old as any).id));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_barbers' }, (payload) => {
-        if (payload.eventType === 'INSERT') setBarbers(prev => prev.some(b => b.id === (payload.new as any).id) ? prev : [...prev, payload.new as Barber]);
-        else if (payload.eventType === 'UPDATE') setBarbers(prev => prev.map(b => b.id === (payload.new as any).id ? payload.new as Barber : b));
-        else if (payload.eventType === 'DELETE') setBarbers(prev => prev.filter(b => b.id !== (payload.old as any).id));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_units' }, (payload) => {
-        if (payload.eventType === 'INSERT') setUnits(prev => prev.some(u => u.id === (payload.new as any).id) ? prev : [...prev, payload.new as Unit]);
-        else if (payload.eventType === 'UPDATE') setUnits(prev => prev.map(u => u.id === (payload.new as any).id ? payload.new as Unit : u));
-        else if (payload.eventType === 'DELETE') setUnits(prev => prev.filter(u => u.id !== (payload.old as any).id));
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_barbers' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_units' }, () => loadAppData())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
