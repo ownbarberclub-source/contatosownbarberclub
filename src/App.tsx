@@ -190,7 +190,7 @@ export default function App() {
   const handleRemoveBarber = async (id: string) => {
     if (window.confirm('Tem certeza que deseja remover este barbeiro?')) {
       setBarbers(barbers.filter(b => b.id !== id));
-      await supabase.from('barbers').delete().eq('id', id);
+      await supabase.from('referral_barbers').delete().eq('id', id);
     }
   };
 
