@@ -369,7 +369,7 @@ export default function App() {
                   <img 
                     src={Logo} 
                     alt="OWN" 
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain brightness-0 invert"
                   />
                </div>
                <h1 className="text-xl font-black tracking-tighter text-zinc-100 hidden sm:block uppercase italic">
