@@ -1,3 +1,4 @@
+import './hub-access-control' // 🔒 OWN Hub — Controle de Acesso
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';

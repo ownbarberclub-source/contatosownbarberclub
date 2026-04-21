@@ -1,24 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Users, UserPlus, CheckCircle2, XCircle, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock } from 'lucide-react';
 import Logo from './assets/logo.png';
 import { ReferralRecord, ContactPerson, User, Unit, Barber } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
 import { RecordModal } from './components/RecordModal';
-import { Login } from './components/Login';
-import { UsersTab } from './components/UsersTab';
 import { BarbersTab } from './components/BarbersTab';
 import { DashboardTab } from './components/DashboardTab';
-import { getStoredUsers, saveUser, removeUser, getStoredCurrentUser, saveCurrentUser } from './auth';
 import { exportToExcel, exportToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [hubLoading, setHubLoading] = useState(true);
+  const [hubBlocked, setHubBlocked] = useState(false);
   const [units, setUnits] = useState<Unit[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbers' | 'dashboard'>('leads');
-  const [loginError, setLoginError] = useState('');
 
   const [records, setRecords] = useState<ReferralRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,168 +27,133 @@ export default function App() {
   const [editingRecord, setEditingRecord] = useState<ReferralRecord | null>(null);
   const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
 
-  // Load data from Supabase
+  // ── Hub SSO Authentication ───────────────────────────────────
   useEffect(() => {
-    const loadData = async () => {
-      const storedUsers = await getStoredUsers();
-      if (storedUsers.length === 0) {
-        const defaultAdmin: User = {
-          id: crypto.randomUUID(),
-          name: 'Administrador',
-          email: 'ownbarberclub@gmail.com',
-          password: 'AdministrativoOwn7.',
-          isAdmin: true,
-        };
-        setUsers([defaultAdmin]);
-        await saveUser(defaultAdmin);
-      } else {
-        setUsers(storedUsers);
+    const initAuth = async () => {
+      setHubLoading(true);
+
+      // 1. Tenta autenticar via parâmetros de URL do Hub relay
+      const params = new URLSearchParams(window.location.search);
+      const hubUser = params.get('hub_user');
+      const hubPass = params.get('hub_pass');
+
+      if (hubUser && hubPass) {
+        try {
+          const password = atob(hubPass);
+          const { data, error } = await supabase.auth.signInWithPassword({ email: hubUser, password });
+          if (!error && data.user) {
+            // Limpa a URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete('hub_user');
+            url.searchParams.delete('hub_pass');
+            url.searchParams.delete('hub_role');
+            url.searchParams.delete('hub_token');
+            url.searchParams.delete('hub_name');
+            window.history.replaceState({}, '', url.toString());
+          }
+        } catch (e) {
+          console.error('[Contatos] Hub relay auth error:', e);
+        }
       }
 
-      const { data: recordsData, error } = await supabase
-        .from('referral_records')
+      // 2. Verifica sessão ativa no Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setHubBlocked(true);
+        setHubLoading(false);
+        return;
+      }
+
+      // 3. Busca perfil no hub_profiles
+      const { data: profile } = await supabase
+        .from('hub_profiles')
         .select('*')
-        .order('createdAt', { ascending: false });
-        
-      if (!error && recordsData) {
-        setRecords(recordsData);
-      } else if (error) {
-        console.error('Failed to fetch records', error);
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profile || !profile.is_authorized) {
+        setHubBlocked(true);
+        setHubLoading(false);
+        return;
       }
 
-      const { data: unitsData } = await supabase.from('units').select('*');
-      if (unitsData) setUnits(unitsData);
+      const user: User = {
+        id: session.user.id,
+        name: profile.name || session.user.email?.split('@')[0] || 'Usuário',
+        email: session.user.email || '',
+        password: '',
+        isAdmin: profile.role === 'admin',
+        permissions: profile.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [],
+      };
+      setCurrentUser(user);
+      setHubLoading(false);
 
-      const { data: barbersData } = await supabase.from('barbers').select('*');
-      if (barbersData) setBarbers(barbersData);
-
-      const storedCurrentUser = getStoredCurrentUser();
-      if (storedCurrentUser) {
-        setCurrentUser(storedCurrentUser);
-      }
+      // 4. Carrega dados da aplicação
+      loadAppData();
     };
 
-    loadData();
-
-    // Set up Realtime subscriptions
-    const channel = supabase.channel('realtime-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'referral_records' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setRecords(prev => {
-              if (prev.some(r => r.id === payload.new.id)) return prev;
-              return [payload.new as ReferralRecord, ...prev];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setRecords(prev => prev.map(r => r.id === payload.new.id ? payload.new as ReferralRecord : r));
-          } else if (payload.eventType === 'DELETE') {
-            setRecords(prev => prev.filter(r => r.id !== payload.old.id));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'barbers' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setBarbers(prev => {
-              if (prev.some(b => b.id === payload.new.id)) return prev;
-              return [...prev, payload.new as Barber];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setBarbers(prev => prev.map(b => b.id === payload.new.id ? payload.new as Barber : b));
-          } else if (payload.eventType === 'DELETE') {
-            setBarbers(prev => prev.filter(b => b.id !== payload.old.id));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'units' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setUnits(prev => {
-              if (prev.some(u => u.id === payload.new.id)) return prev;
-              return [...prev, payload.new as Unit];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setUnits(prev => prev.map(u => u.id === payload.new.id ? payload.new as Unit : u));
-          } else if (payload.eventType === 'DELETE') {
-            setUnits(prev => prev.filter(u => u.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    initAuth();
   }, []);
 
+  const loadAppData = async () => {
+    const { data: recordsData } = await supabase
+      .from('referral_records')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    if (recordsData) setRecords(recordsData);
 
-  const handleLogin = (email: string, pass: string) => {
-    const user = users.find(u => u.email === email && u.password === pass);
-    if (user) {
-      setCurrentUser(user);
-      saveCurrentUser(user);
-      setLoginError('');
-    } else {
-      setLoginError('E-mail ou senha incorretos.');
-    }
+    const { data: unitsData } = await supabase.from('referral_units').select('*');
+    if (unitsData) setUnits(unitsData);
+
+    const { data: barbersData } = await supabase.from('referral_barbers').select('*');
+    if (barbersData) setBarbers(barbersData);
+
+    // Realtime
+    const channel = supabase.channel('realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, (payload) => {
+        if (payload.eventType === 'INSERT') setRecords(prev => prev.some(r => r.id === (payload.new as any).id) ? prev : [payload.new as ReferralRecord, ...prev]);
+        else if (payload.eventType === 'UPDATE') setRecords(prev => prev.map(r => r.id === (payload.new as any).id ? payload.new as ReferralRecord : r));
+        else if (payload.eventType === 'DELETE') setRecords(prev => prev.filter(r => r.id !== (payload.old as any).id));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_barbers' }, (payload) => {
+        if (payload.eventType === 'INSERT') setBarbers(prev => prev.some(b => b.id === (payload.new as any).id) ? prev : [...prev, payload.new as Barber]);
+        else if (payload.eventType === 'UPDATE') setBarbers(prev => prev.map(b => b.id === (payload.new as any).id ? payload.new as Barber : b));
+        else if (payload.eventType === 'DELETE') setBarbers(prev => prev.filter(b => b.id !== (payload.old as any).id));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_units' }, (payload) => {
+        if (payload.eventType === 'INSERT') setUnits(prev => prev.some(u => u.id === (payload.new as any).id) ? prev : [...prev, payload.new as Unit]);
+        else if (payload.eventType === 'UPDATE') setUnits(prev => prev.map(u => u.id === (payload.new as any).id ? payload.new as Unit : u));
+        else if (payload.eventType === 'DELETE') setUnits(prev => prev.filter(u => u.id !== (payload.old as any).id));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
-    saveCurrentUser(null);
+    setHubBlocked(true);
     setActiveTab('leads');
-  };
-
-  const handleAddUser = async (newUser: Omit<User, 'id'>) => {
-    if (users.some(u => u.email === newUser.email)) {
-      alert('Já existe um usuário com este e-mail.');
-      return;
-    }
-    const user = { ...newUser, id: crypto.randomUUID() };
-    setUsers([...users, user]);
-    await saveUser(user);
-  };
-
-  const handleRemoveUser = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover este usuário?')) {
-      setUsers(users.filter(u => u.id !== id));
-      await removeUser(id);
-    }
-  };
-
-  const handleUpdateUser = async (id: string, data: Partial<User>) => {
-    const updatedUser = users.find(u => u.id === id);
-    if (!updatedUser) return;
-    
-    const newUser = { ...updatedUser, ...data };
-    setUsers(users.map(u => u.id === id ? newUser : u));
-    // @ts-ignore
-    await supabase.from('users').update(data).eq('id', id);
   };
 
   const handleAddUnit = async (name: string) => {
     const newUnit = { id: crypto.randomUUID(), name };
     setUnits([...units, newUnit]);
-    await supabase.from('units').insert([newUnit]);
+    await supabase.from('referral_units').insert([newUnit]);
   };
 
   const handleRemoveUnit = async (id: string) => {
     if (window.confirm('Tem certeza que deseja remover esta unidade? Barbeiros associados a ela ficarão órfãos.')) {
       setUnits(units.filter(u => u.id !== id));
-      await supabase.from('units').delete().eq('id', id);
+      await supabase.from('referral_units').delete().eq('id', id);
     }
   };
 
   const handleAddBarber = async (name: string, unitId: string, cpf: string) => {
     const newBarber = { id: crypto.randomUUID(), name, unit_id: unitId, cpf };
     setBarbers([...barbers, newBarber]);
-    await supabase.from('barbers').insert([newBarber]);
+    await supabase.from('referral_barbers').insert([newBarber]);
   };
 
   const handleUpdateBarber = async (id: string, data: Partial<Barber>) => {
@@ -200,7 +162,7 @@ export default function App() {
     
     const newBarber = { ...updatedBarber, ...data };
     setBarbers(barbers.map(b => b.id === id ? newBarber : b));
-    await supabase.from('barbers').update(data).eq('id', id);
+    await supabase.from('referral_barbers').update(data).eq('id', id);
   };
 
   const handleRemoveBarber = async (id: string) => {
@@ -335,8 +297,37 @@ export default function App() {
     };
   }, [records, selectedDate]);
 
-  if (!currentUser) {
-    return <Login onLogin={handleLogin} error={loginError} />;
+  if (hubLoading) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#09090b', color: '#fff', fontFamily: 'Space Grotesk, sans-serif' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, border: '3px solid #E10600', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#71717a', fontSize: 14 }}>Verificando acesso via Hub...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hubBlocked || !currentUser) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#09090b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Space Grotesk, sans-serif' }}>
+        <div style={{ maxWidth: 400, width: '100%', textAlign: 'center', background: '#18181b', padding: 40, borderRadius: 24, border: '1px solid #27272a' }}>
+          <div style={{ width: 64, height: 64, background: 'linear-gradient(135deg, #E10600, #B00400)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 8px 24px rgba(225,6,0,0.3)' }}>
+            <Lock size={28} color="#fff" />
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#f4f4f5', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>Acesso Restrito</h2>
+          <p style={{ color: '#71717a', fontSize: 14, lineHeight: 1.6, marginBottom: 32 }}>
+            Este sistema é exclusivo para operadores autorizados.<br />Por favor, acesse pelo <strong style={{ color: '#fff' }}>OWN Hub</strong>.
+          </p>
+          <a
+            href="https://own-hub.vercel.app"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#E10600', color: '#fff', textDecoration: 'none', padding: '12px 28px', borderRadius: 12, fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 8px 24px rgba(225,6,0,0.3)' }}
+          >
+            → Ir para o OWN Hub
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -372,19 +363,7 @@ export default function App() {
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                   }`}
                 >
-                  Barbeiros & Rank
-                </button>
-              )}
-              {currentUser.isAdmin && (
-                <button
-                  onClick={() => setActiveTab('users')}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'users' 
-                      ? 'bg-zinc-800 text-brand' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
-                >
-                  Usuários
+                  Barbeiros &amp; Rank
                 </button>
               )}
               {currentUser.isAdmin && (
