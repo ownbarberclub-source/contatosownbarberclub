@@ -8,7 +8,7 @@
  * ============================================================
  */
 
-const HUB_URL = 'https://own-hub.vercel.app';
+const HUB_URL = 'https://ownpainel.vercel.app';
 const HUB_SESSION_KEY = '@own-hub:session';
 const TOKEN_PARAM = 'hub_token';
 
