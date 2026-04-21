@@ -13,6 +13,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [hubLoading, setHubLoading] = useState(true);
   const [hubBlocked, setHubBlocked] = useState(false);
+  const [debugMsg, setDebugMsg] = useState('');
   const [units, setUnits] = useState<Unit[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbers' | 'dashboard'>('leads');
@@ -37,89 +38,78 @@ export default function App() {
       const hubPass = params.get('hub_pass');
       const hubToken = params.get('hub_token');
 
+      setDebugMsg(`Params: user=${hubUser ? '✓' : '✗'} pass=${hubPass ? '✓' : '✗'} token=${hubToken ? '✓' : '✗'}`);
+
       // 1. Tenta autenticar via relay de senha (hub_pass presente)
       if (hubUser && hubPass) {
         try {
           const password = atob(hubPass);
-          await supabase.auth.signInWithPassword({ email: hubUser, password });
-        } catch (e) {
-          console.error('[Contatos] Password relay error:', e);
+          const { error: authErr } = await supabase.auth.signInWithPassword({ email: hubUser, password });
+          if (authErr) setDebugMsg(`PassRelay: ${authErr.message}`);
+        } catch (e: any) {
+          setDebugMsg(`PassRelay Exception: ${e.message}`);
         }
       }
 
-      // 2. Verifica sessão ativa no Supabase (funciona se relay acima logou OU se já havia sessão)
-      const { data: { session } } = await supabase.auth.getSession();
+      // 2. Verifica sessão ativa no Supabase
+      const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) setDebugMsg(prev => prev + ` | SessionErr: ${sessionErr.message}`);
 
-      // 3. Se não tem sessão mas tem token relay, tenta validar diretamente via hub_profiles por email
+      // 3. Token relay fallback
       if (!session?.user && hubUser && hubToken) {
         try {
           const decoded = JSON.parse(atob(hubToken));
+          setDebugMsg(prev => prev + ` | Token: uid=${decoded.uid?.slice(0,8)} exp=${decoded.exp > Date.now() ? 'valid' : 'expired'}`);
           if (decoded.uid && decoded.exp > Date.now()) {
-            // Token válido — busca o perfil direto pelo email sem precisar de senha
-            const { data: profileByEmail } = await supabase
+            const { data: profileByToken, error: profErr } = await supabase
               .from('hub_profiles')
               .select('*')
               .eq('id', decoded.uid)
               .single();
 
-            if (profileByEmail && profileByEmail.is_authorized) {
-              // Limpa URL
+            setDebugMsg(prev => prev + ` | Profile: ${profileByToken ? `found is_auth=${profileByToken.is_authorized}` : `null err=${profErr?.message}`}`);
+
+            if (profileByToken && profileByToken.is_authorized) {
               const url = new URL(window.location.href);
               ['hub_user','hub_pass','hub_role','hub_token','hub_name'].forEach(p => url.searchParams.delete(p));
               window.history.replaceState({}, '', url.toString());
-
-              const user: User = {
-                id: profileByEmail.id,
-                name: profileByEmail.name || hubUser.split('@')[0],
-                email: hubUser,
-                password: '',
-                isAdmin: profileByEmail.role === 'admin',
-                permissions: profileByEmail.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [],
-              };
-              setCurrentUser(user);
+              setCurrentUser({ id: profileByToken.id, name: profileByToken.name || hubUser.split('@')[0], email: hubUser, password: '', isAdmin: profileByToken.role === 'admin', permissions: profileByToken.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [] });
               setHubLoading(false);
               loadAppData();
               return;
             }
           }
-        } catch (e) {
-          console.error('[Contatos] Token relay error:', e);
+        } catch (e: any) {
+          setDebugMsg(prev => prev + ` | TokenErr: ${e.message}`);
         }
       }
 
       if (!session?.user) {
+        setDebugMsg(prev => prev + ' | BLOCKED: no session');
         setHubBlocked(true);
         setHubLoading(false);
         return;
       }
 
       // 4. Busca perfil no hub_profiles
-      const { data: profile } = await supabase
+      const { data: profile, error: profErr2 } = await supabase
         .from('hub_profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
 
       if (!profile || !profile.is_authorized) {
+        setDebugMsg(prev => prev + ` | BLOCKED: profile=${profile ? `found is_auth=${profile.is_authorized}` : `null err=${profErr2?.message}`}`);
         setHubBlocked(true);
         setHubLoading(false);
         return;
       }
 
-      // Limpa URL
       const url = new URL(window.location.href);
       ['hub_user','hub_pass','hub_role','hub_token','hub_name'].forEach(p => url.searchParams.delete(p));
       window.history.replaceState({}, '', url.toString());
 
-      const user: User = {
-        id: session.user.id,
-        name: profile.name || session.user.email?.split('@')[0] || 'Usuário',
-        email: session.user.email || '',
-        password: '',
-        isAdmin: profile.role === 'admin',
-        permissions: profile.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [],
-      };
-      setCurrentUser(user);
+      setCurrentUser({ id: session.user.id, name: profile.name || session.user.email?.split('@')[0] || 'Usuário', email: session.user.email || '', password: '', isAdmin: profile.role === 'admin', permissions: profile.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [] });
       setHubLoading(false);
       loadAppData();
     };
@@ -343,14 +333,19 @@ export default function App() {
   if (hubBlocked || !currentUser) {
     return (
       <div style={{ minHeight: '100vh', background: '#09090b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Space Grotesk, sans-serif' }}>
-        <div style={{ maxWidth: 400, width: '100%', textAlign: 'center', background: '#18181b', padding: 40, borderRadius: 24, border: '1px solid #27272a' }}>
+        <div style={{ maxWidth: 480, width: '100%', textAlign: 'center', background: '#18181b', padding: 40, borderRadius: 24, border: '1px solid #27272a' }}>
           <div style={{ width: 64, height: 64, background: 'linear-gradient(135deg, #E10600, #B00400)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 8px 24px rgba(225,6,0,0.3)' }}>
             <Lock size={28} color="#fff" />
           </div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: '#f4f4f5', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>Acesso Restrito</h2>
-          <p style={{ color: '#71717a', fontSize: 14, lineHeight: 1.6, marginBottom: 32 }}>
+          <p style={{ color: '#71717a', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
             Este sistema é exclusivo para operadores autorizados.<br />Por favor, acesse pelo <strong style={{ color: '#fff' }}>OWN Hub</strong>.
           </p>
+          {debugMsg && (
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 24, textAlign: 'left', fontSize: 11, color: '#f87171', wordBreak: 'break-all', lineHeight: 1.6 }}>
+              {debugMsg}
+            </div>
+          )}
           <a
             href="https://own-hub.vercel.app"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#E10600', color: '#fff', textDecoration: 'none', padding: '12px 28px', borderRadius: 12, fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 8px 24px rgba(225,6,0,0.3)' }}
@@ -361,6 +356,7 @@ export default function App() {
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-brand/30">
