@@ -347,7 +347,7 @@ export default function App() {
             </div>
           )}
           <a
-            href="https://own-hub.vercel.app"
+            href="https://ownpainel.vercel.app"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#E10600', color: '#fff', textDecoration: 'none', padding: '12px 28px', borderRadius: 12, fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 8px 24px rgba(225,6,0,0.3)' }}
           >
             → Ir para o OWN Hub
