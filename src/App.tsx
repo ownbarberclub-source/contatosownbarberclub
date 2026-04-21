@@ -32,39 +32,68 @@ export default function App() {
     const initAuth = async () => {
       setHubLoading(true);
 
-      // 1. Tenta autenticar via parâmetros de URL do Hub relay
       const params = new URLSearchParams(window.location.search);
       const hubUser = params.get('hub_user');
       const hubPass = params.get('hub_pass');
+      const hubToken = params.get('hub_token');
 
+      // 1. Tenta autenticar via relay de senha (hub_pass presente)
       if (hubUser && hubPass) {
         try {
           const password = atob(hubPass);
-          const { data, error } = await supabase.auth.signInWithPassword({ email: hubUser, password });
-          if (!error && data.user) {
-            // Limpa a URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete('hub_user');
-            url.searchParams.delete('hub_pass');
-            url.searchParams.delete('hub_role');
-            url.searchParams.delete('hub_token');
-            url.searchParams.delete('hub_name');
-            window.history.replaceState({}, '', url.toString());
-          }
+          await supabase.auth.signInWithPassword({ email: hubUser, password });
         } catch (e) {
-          console.error('[Contatos] Hub relay auth error:', e);
+          console.error('[Contatos] Password relay error:', e);
         }
       }
 
-      // 2. Verifica sessão ativa no Supabase
+      // 2. Verifica sessão ativa no Supabase (funciona se relay acima logou OU se já havia sessão)
       const { data: { session } } = await supabase.auth.getSession();
+
+      // 3. Se não tem sessão mas tem token relay, tenta validar diretamente via hub_profiles por email
+      if (!session?.user && hubUser && hubToken) {
+        try {
+          const decoded = JSON.parse(atob(hubToken));
+          if (decoded.uid && decoded.exp > Date.now()) {
+            // Token válido — busca o perfil direto pelo email sem precisar de senha
+            const { data: profileByEmail } = await supabase
+              .from('hub_profiles')
+              .select('*')
+              .eq('id', decoded.uid)
+              .single();
+
+            if (profileByEmail && profileByEmail.is_authorized) {
+              // Limpa URL
+              const url = new URL(window.location.href);
+              ['hub_user','hub_pass','hub_role','hub_token','hub_name'].forEach(p => url.searchParams.delete(p));
+              window.history.replaceState({}, '', url.toString());
+
+              const user: User = {
+                id: profileByEmail.id,
+                name: profileByEmail.name || hubUser.split('@')[0],
+                email: hubUser,
+                password: '',
+                isAdmin: profileByEmail.role === 'admin',
+                permissions: profileByEmail.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [],
+              };
+              setCurrentUser(user);
+              setHubLoading(false);
+              loadAppData();
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('[Contatos] Token relay error:', e);
+        }
+      }
+
       if (!session?.user) {
         setHubBlocked(true);
         setHubLoading(false);
         return;
       }
 
-      // 3. Busca perfil no hub_profiles
+      // 4. Busca perfil no hub_profiles
       const { data: profile } = await supabase
         .from('hub_profiles')
         .select('*')
@@ -77,6 +106,11 @@ export default function App() {
         return;
       }
 
+      // Limpa URL
+      const url = new URL(window.location.href);
+      ['hub_user','hub_pass','hub_role','hub_token','hub_name'].forEach(p => url.searchParams.delete(p));
+      window.history.replaceState({}, '', url.toString());
+
       const user: User = {
         id: session.user.id,
         name: profile.name || session.user.email?.split('@')[0] || 'Usuário',
@@ -87,8 +121,6 @@ export default function App() {
       };
       setCurrentUser(user);
       setHubLoading(false);
-
-      // 4. Carrega dados da aplicação
       loadAppData();
     };
 
