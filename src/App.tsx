@@ -365,10 +365,16 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
-              <img src={Logo} alt="OWN Barber Club" className="w-10 h-10 object-contain brightness-0 invert" />
-              <h1 className="text-xl font-bold tracking-tight text-zinc-100 hidden sm:block uppercase italic">
-                OWN <span className="text-brand">BARBER</span> CLUB
-              </h1>
+               <div className="w-10 h-10 bg-zinc-950 rounded-xl overflow-hidden border border-zinc-800 p-1.5 shadow-lg">
+                  <img 
+                    src="https://ownbarberclublp.vercel.app/assets/logo.png" 
+                    alt="OWN" 
+                    className="w-full h-full object-contain"
+                  />
+               </div>
+               <h1 className="text-xl font-black tracking-tighter text-zinc-100 hidden sm:block uppercase italic">
+                 OWN <span className="text-brand">BARBER</span> CLUB
+               </h1>
             </div>
             
             <nav className="flex items-center gap-1">
