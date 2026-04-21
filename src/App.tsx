@@ -67,9 +67,9 @@ export default function App() {
               .eq('id', decoded.uid)
               .single();
 
-            setDebugMsg(prev => prev + ` | Profile: ${profileByToken ? `found is_auth=${profileByToken.is_authorized}` : `null err=${profErr?.message}`}`);
+            setDebugMsg(prev => prev + ` | Profile: ${profileByToken ? `found is_active=${profileByToken.is_active} role=${profileByToken.role}` : `null err=${profErr?.message}`}`);
 
-            if (profileByToken && profileByToken.is_authorized) {
+            if (profileByToken && profileByToken.is_active !== false) {
               const url = new URL(window.location.href);
               ['hub_user','hub_pass','hub_role','hub_token','hub_name'].forEach(p => url.searchParams.delete(p));
               window.history.replaceState({}, '', url.toString());
@@ -98,8 +98,8 @@ export default function App() {
         .eq('id', session.user.id)
         .single();
 
-      if (!profile || !profile.is_authorized) {
-        setDebugMsg(prev => prev + ` | BLOCKED: profile=${profile ? `found is_auth=${profile.is_authorized}` : `null err=${profErr2?.message}`}`);
+      if (!profile || profile.is_active === false) {
+        setDebugMsg(prev => prev + ` | BLOCKED: profile=${profile ? `found is_active=${profile.is_active} role=${profile.role}` : `null err=${profErr2?.message}`}`);
         setHubBlocked(true);
         setHubLoading(false);
         return;
