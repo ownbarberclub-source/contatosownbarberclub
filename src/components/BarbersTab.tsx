@@ -10,21 +10,17 @@ interface BarbersTabProps {
   currentUser: User;
   onAddUnit: (name: string) => void;
   onRemoveUnit: (id: string) => void;
-  onAddBarber: (name: string, unitId: string, cpf: string) => void;
+  onAddBarber: (name: string, unitId: string) => void;
   onUpdateBarber: (id: string, data: Partial<Barber>) => void;
   onRemoveBarber: (id: string) => void;
 }
 
 export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, onRemoveUnit, onAddBarber, onUpdateBarber, onRemoveBarber }: BarbersTabProps) {
   const [newUnitName, setNewUnitName] = useState('');
-  const [newBarberName, setNewBarberName] = useState('');
   const [selectedUnitForBarber, setSelectedUnitForBarber] = useState('');
-  const [newBarberCpf, setNewBarberCpf] = useState('');
   
   const [editingBarberId, setEditingBarberId] = useState<string | null>(null);
-  const [editBarberName, setEditBarberName] = useState('');
   const [editBarberUnit, setEditBarberUnit] = useState('');
-  const [editBarberCpf, setEditBarberCpf] = useState('');
   
   // Month selector YYYY-MM
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -41,31 +37,28 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
 
   const handleAddBarber = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newBarberName.trim() || !selectedUnitForBarber || newBarberCpf.length < 14) {
-      alert('Preencha os dados e informe um CPF válido.');
+    if (!newBarberName.trim() || !selectedUnitForBarber) {
+      alert('Preencha o nome e a unidade.');
       return;
     }
-    onAddBarber(newBarberName.trim(), selectedUnitForBarber, newBarberCpf.trim());
+    onAddBarber(newBarberName.trim(), selectedUnitForBarber);
     setNewBarberName('');
-    setNewBarberCpf('');
   };
 
   const startEditingBarber = (barber: Barber) => {
     setEditingBarberId(barber.id);
     setEditBarberName(barber.name);
     setEditBarberUnit(barber.unit_id);
-    setEditBarberCpf(barber.cpf || '');
   };
 
   const handleUpdateBarber = (id: string) => {
-    if (!editBarberName.trim() || !editBarberUnit || editBarberCpf.length < 14) {
-      alert('Preencha os dados e informe um CPF válido.');
+    if (!editBarberName.trim() || !editBarberUnit) {
+      alert('Preencha o nome e a unidade.');
       return;
     }
     onUpdateBarber(id, {
       name: editBarberName.trim(),
-      unit_id: editBarberUnit,
-      cpf: editBarberCpf.trim()
+      unit_id: editBarberUnit
     });
     setEditingBarberId(null);
   };
@@ -171,15 +164,6 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                     placeholder="Nome do Barbeiro..."
                     className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:ring-2 focus:ring-brand/50 focus:border-brand"
                   />
-                  <input
-                    type="text"
-                    required
-                    value={newBarberCpf}
-                    onChange={(e) => setNewBarberCpf(formatCPF(e.target.value))}
-                    placeholder="CPF do Barbeiro"
-                    maxLength={14}
-                    className="w-48 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:ring-2 focus:ring-brand/50 focus:border-brand"
-                  />
                   <select
                     required
                     value={selectedUnitForBarber}
@@ -215,15 +199,6 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                                 className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-sm focus:border-brand"
                                 placeholder="Nome"
                               />
-                              <input
-                                type="text"
-                                required
-                                value={editBarberCpf}
-                                onChange={(e) => setEditBarberCpf(formatCPF(e.target.value))}
-                                maxLength={14}
-                                className="w-32 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-sm focus:border-brand"
-                                placeholder="CPF"
-                              />
                               <select
                                 value={editBarberUnit}
                                 onChange={(e) => setEditBarberUnit(e.target.value)}
@@ -243,7 +218,6 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
                               <span className="text-sm font-medium text-zinc-300">{barber.name}</span>
                               <span className="text-xs text-zinc-500">
                                 {bUnit?.name || '---'}
-                                {barber.cpf ? ` • CPF: ${barber.cpf}` : ''}
                               </span>
                             </div>
                             <div className="flex gap-2">
