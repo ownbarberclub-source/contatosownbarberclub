@@ -124,17 +124,17 @@ export default function App() {
       .order('createdAt', { ascending: false });
     if (recordsData) setRecords(recordsData);
 
-    const { data: unitsData } = await supabase.from('referral_units').select('*');
+    const { data: unitsData } = await supabase.from('previa_units').select('*');
     if (unitsData) setUnits(unitsData);
 
-    const { data: barbersData } = await supabase.from('referral_barbers').select('*');
+    const { data: barbersData } = await supabase.from('previa_barbers').select('*');
     if (barbersData) setBarbers(barbersData);
 
     // Realtime
     const channel = supabase.channel('realtime-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => loadAppData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_barbers' }, () => loadAppData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_units' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -150,20 +150,20 @@ export default function App() {
   const handleAddUnit = async (name: string) => {
     const newUnit = { id: crypto.randomUUID(), name };
     setUnits([...units, newUnit]);
-    await supabase.from('referral_units').insert([newUnit]);
+    await supabase.from('previa_units').insert([newUnit]);
   };
 
   const handleRemoveUnit = async (id: string) => {
     if (window.confirm('Tem certeza que deseja remover esta unidade? Barbeiros associados a ela ficarão órfãos.')) {
       setUnits(units.filter(u => u.id !== id));
-      await supabase.from('referral_units').delete().eq('id', id);
+      await supabase.from('previa_units').delete().eq('id', id);
     }
   };
 
   const handleAddBarber = async (name: string, unitId: string) => {
     const newBarber = { id: crypto.randomUUID(), name, unit_id: unitId };
     setBarbers([...barbers, newBarber]);
-    await supabase.from('referral_barbers').insert([newBarber]);
+    await supabase.from('previa_barbers').insert([newBarber]);
   };
 
   const handleUpdateBarber = async (id: string, data: Partial<Barber>) => {
@@ -172,13 +172,13 @@ export default function App() {
     
     const newBarber = { ...updatedBarber, ...data };
     setBarbers(barbers.map(b => b.id === id ? newBarber : b));
-    await supabase.from('referral_barbers').update(data).eq('id', id);
+    await supabase.from('previa_barbers').update(data).eq('id', id);
   };
 
   const handleRemoveBarber = async (id: string) => {
     if (window.confirm('Tem certeza que deseja remover este barbeiro?')) {
       setBarbers(barbers.filter(b => b.id !== id));
-      await supabase.from('referral_barbers').delete().eq('id', id);
+      await supabase.from('previa_barbers').delete().eq('id', id);
     }
   };
 
