@@ -17,9 +17,11 @@ interface BarbersTabProps {
 
 export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, onRemoveUnit, onAddBarber, onUpdateBarber, onRemoveBarber }: BarbersTabProps) {
   const [newUnitName, setNewUnitName] = useState('');
+  const [newBarberName, setNewBarberName] = useState('');
   const [selectedUnitForBarber, setSelectedUnitForBarber] = useState('');
   
   const [editingBarberId, setEditingBarberId] = useState<string | null>(null);
+  const [editBarberName, setEditBarberName] = useState('');
   const [editBarberUnit, setEditBarberUnit] = useState('');
   
   // Month selector YYYY-MM
