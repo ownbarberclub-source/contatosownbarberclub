@@ -129,16 +129,28 @@ export default function App() {
 
     const { data: barbersData } = await supabase.from('previa_barbers').select('*');
     if (barbersData) setBarbers(barbersData);
+  };
 
-    // Realtime
+  // Realtime Sync Subscription
+  useEffect(() => {
+    if (!currentUser) return;
+
     const channel = supabase.channel('realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => loadAppData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => {
+        loadAppData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => {
+        loadAppData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => {
+        loadAppData();
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
