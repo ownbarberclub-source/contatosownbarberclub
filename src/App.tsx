@@ -314,7 +314,12 @@ export default function App() {
   const stats = useMemo(() => {
     const allContacts = records.flatMap(r => r.contacts || []);
     const calledTotal = allContacts.filter(c => c.status && c.status !== 'pending').length;
-    const converted = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
+    
+    // Conversoes = Leads convertidos + Vendas Diretas na cadeira
+    const leadConversions = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
+    const directSales = records.filter(r => r.isDirectSale).length;
+    const totalConversions = leadConversions + directSales;
+
     const noResponse = allContacts.filter(c => c.status === 'no_response').length;
     
     const calledToday = allContacts.filter(c => 
@@ -325,11 +330,14 @@ export default function App() {
 
     return {
       totalClients: new Set(records.map(r => cleanCPF(r.clientCpf))).size,
-      totalLeads: allContacts.length,
+      totalLeads: allContacts.length + directSales, // Soma vendas diretas como leads convertidos
       leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
       calledToday,
-      conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
+      conversionRate: (allContacts.length + directSales) > 0 
+        ? Math.round((totalConversions / (allContacts.length + directSales)) * 100) 
+        : 0,
       noResponseRate: calledTotal > 0 ? Math.round((noResponse / calledTotal) * 100) : 0,
+      totalConversions,
     };
   }, [records, selectedDate]);
 
@@ -569,7 +577,7 @@ export default function App() {
                 <TrendingUp className="w-4 h-4" />
                 <p className="text-xs font-medium uppercase tracking-wider">ROI Conversão</p>
               </div>
-              <p className="text-2xl font-bold text-brand">{stats.conversionRate}%</p>
+              <p className="text-2xl font-bold text-brand">{stats.totalConversions}</p>
             </div>
           </div>
         </div>
@@ -629,7 +637,14 @@ export default function App() {
                                 {contact.phone}
                               </a>
                             </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">{batch.barberName}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">
+                              {batch.barberName}
+                              {batch.isDirectSale && (
+                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
+                                  Venda Direta
+                                </span>
+                              )}
+                            </td>
                             <td className="px-6 py-3 whitespace-nowrap text-center">
                               <select
                                 value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
@@ -650,13 +665,17 @@ export default function App() {
                               </select>
                             </td>
                             <td className="px-6 py-3">
-                              <input 
-                                type="text"
-                                placeholder="Adicionar nota..."
-                                value={contact.notes || ''}
-                                onChange={(e) => updateContactData(batch.id, contact.id, { notes: e.target.value })}
-                                className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700"
-                              />
+                              {batch.isDirectSale ? (
+                                <span className="text-xs text-zinc-500 italic">Venda direta: Plano {batch.planType}</span>
+                              ) : (
+                                <input 
+                                  type="text"
+                                  placeholder="Adicionar nota..."
+                                  value={contact.notes || ''}
+                                  onChange={(e) => updateContactData(batch.id, contact.id, { notes: e.target.value })}
+                                  className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700"
+                                />
+                              )}
                             </td>
                             <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                               <button

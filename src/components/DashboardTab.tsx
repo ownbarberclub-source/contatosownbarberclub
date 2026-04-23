@@ -61,6 +61,15 @@ export function DashboardTab({ records }: DashboardTabProps) {
       const loteSize = validContacts.length;
 
       totalLeads += loteSize;
+      if (record.isDirectSale) {
+        totalLeads += 1; // Venda direta conta como 1 lead convertido
+        convertedLeads++;
+        barberPerformance[bName].leads += 1;
+        barberPerformance[bName].conversions++;
+        receptionistPerformance[rName].created += 1;
+        receptionistPerformance[rName].conversions++;
+      }
+      
       barberPerformance[bName].leads += loteSize;
       receptionistPerformance[rName].created += loteSize;
 
@@ -72,7 +81,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
           noResponseLeads++;
           barberPerformance[bName].noResponse++;
         }
-        // Prioritiza o novo sistema de status para o Analytics
+        
         const isConverted = contact.status 
           ? contact.status === 'converted' 
           : contact.subscriptionClosed;
