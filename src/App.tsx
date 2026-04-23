@@ -124,7 +124,6 @@ export default function App() {
       .order('createdAt', { ascending: false });
     
     if (recordsData) {
-      // Mapeia snake_case do banco para camelCase do código
       const mappedRecords = recordsData.map((r: any) => ({
         ...r,
         clientName: r.client_name,
@@ -133,7 +132,7 @@ export default function App() {
         barberName: r.barber_name,
         isDirectSale: r.is_direct_sale,
         planType: r.plan_type,
-        createdAt: r.createdAt // Já está correto
+        createdAt: r.createdAt
       }));
       setRecords(mappedRecords);
     }
@@ -143,16 +142,33 @@ export default function App() {
 
     const { data: barbersData } = await supabase.from('previa_barbers').select('*');
     if (barbersData) setBarbers(barbersData);
-
-    // Realtime
-    const channel = supabase.channel('realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => loadAppData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   };
+
+  // Tempo Real (Realtime)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const channel = supabase.channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => {
+        console.log('Realtime: referral_records changed');
+        loadAppData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => {
+        console.log('Realtime: previa_barbers changed');
+        loadAppData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => {
+        console.log('Realtime: previa_units changed');
+        loadAppData();
+      })
+      .subscribe((status) => {
+        console.log('Realtime Status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
