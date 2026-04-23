@@ -135,19 +135,22 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
 
+    console.log("Iniciando Realtime para:", currentUser.email);
+
     const channel = supabase.channel('realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, (payload) => {
+        console.log("Mudança detectada em records:", payload);
         loadAppData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => {
-        loadAppData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => {
-        loadAppData();
-      })
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
+      .subscribe((status) => {
+        console.log("Status do Realtime:", status);
+        setDebugMsg(prev => `${prev} | SYNC:${status}`);
+      });
 
     return () => {
+      console.log("Limpando canal Realtime");
       supabase.removeChannel(channel);
     };
   }, [currentUser]);
