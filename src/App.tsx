@@ -5,7 +5,6 @@ import { ReferralRecord, ContactPerson, User, Unit, Barber } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
 import { RecordModal } from './components/RecordModal';
 import { BarbersTab } from './components/BarbersTab';
-import { UsersTab } from './components/UsersTab';
 import { DashboardTab } from './components/DashboardTab';
 import { exportToExcel, exportToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
@@ -18,7 +17,7 @@ export default function App() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbers' | 'dashboard'>('leads');
-  const [users, setUsers] = useState<User[]>([]);
+
   const [records, setRecords] = useState<ReferralRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -28,7 +27,6 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ReferralRecord | null>(null);
   const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
-  const [isDirectSaleMode, setIsDirectSaleMode] = useState(false);
 
   // ── Hub SSO Authentication ───────────────────────────────────
   useEffect(() => {
@@ -123,21 +121,8 @@ export default function App() {
     const { data: recordsData } = await supabase
       .from('referral_records')
       .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (recordsData) {
-      const mappedRecords = recordsData.map((r: any) => ({
-        ...r,
-        clientName: r.client_name || 'Cliente Sem Nome',
-        clientCpf: r.client_cpf || '',
-        barberId: r.barber_id || '',
-        barberName: r.barber_name || 'Desconhecido',
-        isDirectSale: !!r.is_direct_sale,
-        planType: r.plan_type || '',
-        createdAt: r.created_at || r.createdAt // Fallback para ambos os formatos
-      }));
-      setRecords(mappedRecords);
-    }
+      .order('createdAt', { ascending: false });
+    if (recordsData) setRecords(recordsData);
 
     const { data: unitsData } = await supabase.from('previa_units').select('*');
     if (unitsData) setUnits(unitsData);
@@ -145,45 +130,15 @@ export default function App() {
     const { data: barbersData } = await supabase.from('previa_barbers').select('*');
     if (barbersData) setBarbers(barbersData);
 
-    const { data: usersData } = await supabase.from('hub_profiles').select('*');
-    if (usersData) {
-      const mappedUsers: User[] = usersData.map((u: any) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email || '',
-        password: '',
-        isAdmin: u.role === 'admin',
-        permissions: u.permissions || []
-      }));
-      setUsers(mappedUsers);
-    }
+    // Realtime
+    const channel = supabase.channel('realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   };
-
-  // Tempo Real (Realtime)
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const channel = supabase.channel('db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, () => {
-        console.log('Realtime: referral_records changed');
-        loadAppData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => {
-        console.log('Realtime: previa_barbers changed');
-        loadAppData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => {
-        console.log('Realtime: previa_units changed');
-        loadAppData();
-      })
-      .subscribe((status) => {
-        console.log('Realtime Status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -227,51 +182,6 @@ export default function App() {
     }
   };
 
-  const handleAddUser = async (userData: Omit<User, 'id'>) => {
-    if (!currentUser?.isAdmin) return;
-    const { data: authData, error: authErr } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
-      options: { data: { name: userData.name } }
-    });
-
-    if (authErr) {
-      alert(`Erro ao criar usuário: ${authErr.message}`);
-      return;
-    }
-
-    if (authData.user) {
-      const newUserProfile = {
-        id: authData.user.id,
-        name: userData.name,
-        email: userData.email,
-        role: userData.isAdmin ? 'admin' : 'operator',
-        permissions: userData.permissions,
-        is_active: true
-      };
-      await supabase.from('hub_profiles').insert([newUserProfile]);
-      loadAppData();
-    }
-  };
-
-  const handleUpdateUser = async (id: string, data: Partial<User>) => {
-    const dbUpdates: any = {};
-    if (data.name) dbUpdates.name = data.name;
-    if (data.email) dbUpdates.email = data.email;
-    if (data.isAdmin !== undefined) dbUpdates.role = data.isAdmin ? 'admin' : 'operator';
-    if (data.permissions) dbUpdates.permissions = data.permissions;
-
-    await supabase.from('hub_profiles').update(dbUpdates).eq('id', id);
-    loadAppData();
-  };
-
-  const handleRemoveUser = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover este usuário?')) {
-      await supabase.from('hub_profiles').update({ is_active: false }).eq('id', id);
-      loadAppData();
-    }
-  };
-
   const handleSaveRecord = async (recordData: Omit<ReferralRecord, 'id' | 'createdAt'>) => {
     if (editingRecord) {
       const updatedRecord = { ...editingRecord, ...recordData };
@@ -280,38 +190,16 @@ export default function App() {
           ? updatedRecord
           : r
       ));
-      
-      const dbData = {
-        client_name: updatedRecord.clientName,
-        client_cpf: updatedRecord.clientCpf,
-        barber_id: updatedRecord.barberId,
-        barber_name: updatedRecord.barberName,
-        contacts: updatedRecord.contacts,
-        is_direct_sale: updatedRecord.isDirectSale,
-      };
-
-      await supabase.from('referral_records').update(dbData).eq('id', updatedRecord.id);
+      await supabase.from('referral_records').update(updatedRecord).eq('id', updatedRecord.id);
     } else {
       const newRecord: ReferralRecord = {
         ...recordData,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
-        createdByName: currentUser?.name || 'Sistema',
+        createdByName: currentUser.name,
       };
       setRecords([newRecord, ...records]);
-
-      const dbData = {
-        id: newRecord.id,
-        client_name: newRecord.clientName,
-        client_cpf: newRecord.clientCpf,
-        barber_id: newRecord.barberId,
-        barber_name: newRecord.barberName,
-        contacts: newRecord.contacts,
-        is_direct_sale: newRecord.isDirectSale,
-        createdByName: newRecord.createdByName
-      };
-
-      await supabase.from('referral_records').insert([dbData]);
+      await supabase.from('referral_records').insert([newRecord]);
     }
   };
 
@@ -394,18 +282,15 @@ export default function App() {
     }> = {};
 
     records.forEach(record => {
-      // Usa CPF como chave primária, mas se não tiver, usa o Nome do Cliente ou o ID do registro
       const cpf = cleanCPF(record.clientCpf);
-      const groupKey = cpf || record.clientName?.toLowerCase().trim() || record.id;
-      
-      if (!groups[groupKey]) {
-        groups[groupKey] = {
-          clientName: record.clientName || 'Cliente Sem Nome',
-          clientCpf: record.clientCpf || 'Sem CPF',
+      if (!groups[cpf]) {
+        groups[cpf] = {
+          clientName: record.clientName,
+          clientCpf: record.clientCpf,
           batches: [],
         };
       }
-      groups[groupKey].batches.push(record);
+      groups[cpf].batches.push(record);
     });
 
     return Object.values(groups);
@@ -429,12 +314,7 @@ export default function App() {
   const stats = useMemo(() => {
     const allContacts = records.flatMap(r => r.contacts || []);
     const calledTotal = allContacts.filter(c => c.status && c.status !== 'pending').length;
-    
-    // Conversoes = Leads convertidos + Vendas Diretas na cadeira
-    const leadConversions = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
-    const directSales = records.filter(r => r.isDirectSale).length;
-    const totalConversions = leadConversions + directSales;
-
+    const converted = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
     const noResponse = allContacts.filter(c => c.status === 'no_response').length;
     
     const calledToday = allContacts.filter(c => 
@@ -445,14 +325,11 @@ export default function App() {
 
     return {
       totalClients: new Set(records.map(r => cleanCPF(r.clientCpf))).size,
-      totalLeads: allContacts.length + directSales, // Soma vendas diretas como leads convertidos
+      totalLeads: allContacts.length,
       leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
       calledToday,
-      conversionRate: (allContacts.length + directSales) > 0 
-        ? Math.round((totalConversions / (allContacts.length + directSales)) * 100) 
-        : 0,
+      conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
       noResponseRate: calledTotal > 0 ? Math.round((noResponse / calledTotal) * 100) : 0,
-      totalConversions,
     };
   }, [records, selectedDate]);
 
@@ -527,39 +404,27 @@ export default function App() {
               </button>
               {(currentUser.isAdmin || currentUser.permissions?.includes('view_ranking')) && (
                 <button
-                  onClick={() => setActiveTab('barbers')}
+                  onClick={() => setActiveTab('barbeiros')}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'barbers' 
+                    activeTab === 'barbeiros' 
                       ? 'bg-zinc-800 text-brand' 
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                   }`}
                 >
-                  Barbeiros
+                  Barbeiros &amp; Rank
                 </button>
               )}
               {currentUser.isAdmin && (
-                <>
-                  <button
-                    onClick={() => setActiveTab('dashboard')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === 'dashboard' 
-                        ? 'bg-zinc-800 text-brand' 
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    Analytics
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('users')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === 'users' 
-                        ? 'bg-zinc-800 text-brand' 
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    Usuários
-                  </button>
-                </>
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'dashboard' 
+                      ? 'bg-zinc-800 text-brand' 
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  }`}
+                >
+                  Analytics
+                </button>
               )}
             </nav>
           </div>
@@ -586,9 +451,9 @@ export default function App() {
             onAddUser={handleAddUser} 
             onRemoveUser={handleRemoveUser} 
             onUpdateUser={handleUpdateUser}
-            currentUser={currentUser!} 
+            currentUser={currentUser} 
           />
-        ) : activeTab === 'barbers' ? (
+        ) : activeTab === 'barbeiros' ? (
           <BarbersTab
             units={units}
             barbers={barbers}
@@ -653,24 +518,7 @@ export default function App() {
                       </>
                     )}
                     <button
-                      onClick={() => {
-                        setEditingRecord(null);
-                        setPreFilledClient(null);
-                        setIsDirectSaleMode(true);
-                        setIsModalOpen(true);
-                      }}
-                      className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-500/20"
-                    >
-                      <Scissors className="w-4 h-4" />
-                      <span className="hidden sm:inline">Venda Direta</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingRecord(null);
-                        setPreFilledClient(null);
-                        setIsDirectSaleMode(false);
-                        setIsModalOpen(true);
-                      }}
+                      onClick={openNewModal}
                       className="flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
                     >
                       <Plus className="w-4 h-4" />
@@ -721,7 +569,7 @@ export default function App() {
                 <TrendingUp className="w-4 h-4" />
                 <p className="text-xs font-medium uppercase tracking-wider">ROI Conversão</p>
               </div>
-              <p className="text-2xl font-bold text-brand">{stats.totalConversions}</p>
+              <p className="text-2xl font-bold text-brand">{stats.conversionRate}%</p>
             </div>
           </div>
         </div>
@@ -781,14 +629,7 @@ export default function App() {
                                 {contact.phone}
                               </a>
                             </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">
-                              {batch.barberName}
-                              {batch.isDirectSale && (
-                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
-                                  Venda Direta
-                                </span>
-                              )}
-                            </td>
+                            <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">{batch.barberName}</td>
                             <td className="px-6 py-3 whitespace-nowrap text-center">
                               <select
                                 value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
@@ -809,17 +650,13 @@ export default function App() {
                               </select>
                             </td>
                             <td className="px-6 py-3">
-                              {batch.isDirectSale ? (
-                                <span className="text-xs text-zinc-500 italic">Venda direta: Plano {batch.planType}</span>
-                              ) : (
-                                <input 
-                                  type="text"
-                                  placeholder="Adicionar nota..."
-                                  value={contact.notes || ''}
-                                  onChange={(e) => updateContactData(batch.id, contact.id, { notes: e.target.value })}
-                                  className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700"
-                                />
-                              )}
+                              <input 
+                                type="text"
+                                placeholder="Adicionar nota..."
+                                value={contact.notes || ''}
+                                onChange={(e) => updateContactData(batch.id, contact.id, { notes: e.target.value })}
+                                className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700"
+                              />
                             </td>
                             <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                               <button
@@ -868,7 +705,6 @@ export default function App() {
         records={records}
         barbers={barbers}
         preFilledClient={preFilledClient}
-        defaultDirectSale={isDirectSaleMode}
       />
     </div>
   );

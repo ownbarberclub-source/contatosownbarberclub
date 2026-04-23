@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Scissors, UserPlus, Trash2 } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { ReferralRecord, ContactPerson, Barber } from '../types';
 import { formatCPF, formatPhone, cleanCPF, cleanPhone } from '../utils';
 
@@ -11,10 +11,9 @@ interface RecordModalProps {
   records: ReferralRecord[];
   barbers: Barber[];
   preFilledClient?: { cpf: string; name: string } | null;
-  defaultDirectSale?: boolean;
 }
 
-export function RecordModal({ isOpen, onClose, onSave, initialData, records, barbers, preFilledClient, defaultDirectSale = false }: RecordModalProps) {
+export function RecordModal({ isOpen, onClose, onSave, initialData, records, barbers, preFilledClient }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
   const [barberId, setBarberId] = useState('');
@@ -22,14 +21,12 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
-  const [isDirectSale, setIsDirectSale] = useState(false);
 
   useEffect(() => {
     setPhoneError('');
     if (initialData) {
       setClientName(initialData.clientName);
       setClientCpf(initialData.clientCpf);
-      setIsDirectSale(!!initialData.isDirectSale);
       
       // Match barberId or figure it out from barberName for old records if possible
       if (initialData.barberId) {
@@ -56,9 +53,8 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
       setContacts([]);
       setNewContactName('');
       setNewContactPhone('');
-      setIsDirectSale(defaultDirectSale);
     }
-  }, [initialData, preFilledClient, isOpen, barbers, defaultDirectSale]);
+  }, [initialData, preFilledClient, isOpen, barbers]);
 
   // Auto-fill when typing CPF
   useEffect(() => {
@@ -149,7 +145,6 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
       barberId: selectedBarber?.id || '',
       barberName: selectedBarber?.name || '',
       contacts,
-      isDirectSale,
     });
     onClose();
   };
@@ -158,12 +153,8 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
-          <h2 className="text-xl font-semibold text-zinc-100 flex items-center gap-2">
-            {defaultDirectSale ? (
-              <><Scissors className="w-5 h-5 text-emerald-500" /> Registrar Venda Direta</>
-            ) : (
-              <><UserPlus className="w-5 h-5 text-brand" /> {initialData ? 'Editar Registro' : 'Novo Registro de Indicações'}</>
-            )}
+          <h2 className="text-xl font-semibold text-zinc-100">
+            {initialData ? 'Editar Registro' : 'Novo Registro'}
           </h2>
           <button
             onClick={onClose}
@@ -221,26 +212,7 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
               </select>
             </div>
 
-            {!defaultDirectSale && (
-              <div className="bg-zinc-800/30 border border-zinc-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-zinc-100 uppercase tracking-tight">Venda Direta na Cadeira?</h4>
-                    <p className="text-xs text-zinc-500">O cliente assinou o plano agora.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsDirectSale(!isDirectSale)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isDirectSale ? 'bg-emerald-600' : 'bg-zinc-700'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDirectSale ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {!isDirectSale && (
-              <div className="space-y-3">
+            <div className="space-y-3">
               <label className="block text-sm font-medium text-zinc-300">
                 Contatos Indicados
               </label>
@@ -320,7 +292,6 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
                 </div>
               )}
             </div>
-          )}
           </form>
         </div>
 
@@ -335,13 +306,9 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
           <button
             type="submit"
             form="record-form"
-            className={`px-6 py-2.5 rounded-lg text-sm font-bold text-white shadow-lg transition-all ${
-              isDirectSale 
-                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20' 
-                : 'bg-brand hover:bg-brand-light shadow-brand/20'
-            }`}
+            className="px-5 py-2.5 rounded-lg text-sm font-medium bg-brand text-white hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
           >
-            {isDirectSale ? 'Confirmar Venda ✅' : (initialData ? 'Salvar Alterações' : 'Salvar Registro')}
+            Salvar Registro
           </button>
         </div>
       </div>

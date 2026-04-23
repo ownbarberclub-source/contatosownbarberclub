@@ -19,8 +19,6 @@ export interface ReferralRecord {
   contacts: ContactPerson[];
   createdAt: string;
   createdByName?: string;
-  isDirectSale?: boolean;
-  planType?: string;
 }
 
 export interface User {

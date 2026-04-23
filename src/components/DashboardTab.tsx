@@ -61,15 +61,6 @@ export function DashboardTab({ records }: DashboardTabProps) {
       const loteSize = validContacts.length;
 
       totalLeads += loteSize;
-      if (record.isDirectSale) {
-        totalLeads += 1; // Venda direta conta como 1 lead convertido
-        convertedLeads++;
-        barberPerformance[bName].leads += 1;
-        barberPerformance[bName].conversions++;
-        receptionistPerformance[rName].created += 1;
-        receptionistPerformance[rName].conversions++;
-      }
-      
       barberPerformance[bName].leads += loteSize;
       receptionistPerformance[rName].created += loteSize;
 
@@ -81,7 +72,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
           noResponseLeads++;
           barberPerformance[bName].noResponse++;
         }
-        
+        // Prioritiza o novo sistema de status para o Analytics
         const isConverted = contact.status 
           ? contact.status === 'converted' 
           : contact.subscriptionClosed;
@@ -105,22 +96,23 @@ export function DashboardTab({ records }: DashboardTabProps) {
           : b[1].conversions - a[1].conversions)
       .slice(0, 5);
 
-    // Ordenação do Top 5 Engajadores por VOLUME (leads criados)
-    const topReceptionistsVolume = Object.entries(receptionistPerformance)
+    // Ordenação do Top 5 Secretários por VOLUME (qtde de leads criados)
+    const topReceptionistsByVolume = Object.entries(receptionistPerformance)
       .sort((a, b) => b[1].created - a[1].created)
       .slice(0, 5);
 
-    // Ordenação do Top 5 Engajadores por CONVERSÃO (%)
-    const topReceptionistsConversion = Object.entries(receptionistPerformance)
-      .filter(([_, data]) => data.created > 0)
+    // Ordenação do Top 5 Secretários por CONVERSÃO (taxa %)
+    // Apenas para quem tem pelo menos 3 leads para evitar 100% de conversão com 1 único lead (sorte)
+    const topReceptionistsByConversion = Object.entries(receptionistPerformance)
+      .filter(([_, data]) => data.created >= 3) 
       .sort((a, b) => {
         const rateA = a[1].conversions / a[1].created;
         const rateB = b[1].conversions / b[1].created;
-        return rateB - rateA || b[1].created - a[1].created;
+        return rateB - rateA;
       })
       .slice(0, 5);
 
-    return { totalLeads, contactRate, contactedLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionistsVolume, topReceptionistsConversion };
+    return { totalLeads, contactRate, contactedLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion };
   }, [filteredRecords]);
 
   // UI Components Extras
@@ -203,8 +195,8 @@ export function DashboardTab({ records }: DashboardTabProps) {
         />
       </div>
 
-      {/* Painéis de Rankings */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Painéis Secundários */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Painel do Barbeiro */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
@@ -213,11 +205,11 @@ export function DashboardTab({ records }: DashboardTabProps) {
           </div>
           <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2 mb-6">
             <TrendingUp className="w-5 h-5 text-emerald-500" />
-            Top Barbeiros (ROI)
+            Top Performance (Barbeiros)
           </h3>
           <div className="space-y-4 relative z-10">
             {stats.topBarbers.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período.</p>
+              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período selecionado.</p>
             ) : (
               stats.topBarbers.map(([name, data], idx) => (
                 <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
@@ -229,8 +221,12 @@ export function DashboardTab({ records }: DashboardTabProps) {
                   </div>
                   <div className="flex gap-4">
                     <div className="text-right">
-                      <span className="block text-xs text-zinc-500 font-medium">ROI</span>
+                      <span className="block text-xs text-zinc-500 font-medium">CONVERSÃO</span>
                       <span className="font-bold text-emerald-400">{data.conversions}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="block text-xs text-zinc-500 font-medium">LEADS</span>
+                      <span className="font-bold text-zinc-300">{data.leads}</span>
                     </div>
                   </div>
                 </div>
@@ -239,20 +235,23 @@ export function DashboardTab({ records }: DashboardTabProps) {
           </div>
         </div>
 
-        {/* Painel Engajadores VOLUME */}
+      {/* Rankings de Engajadores (Duas Colunas) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Painel Volume de Cadastros */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
            <div className="absolute top-0 right-0 p-8 opacity-5">
             <Users className="w-48 h-48" />
           </div>
           <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2 mb-6">
-            <Zap className="w-5 h-5 text-brand" />
-            Top Engajadores (Volume)
+            <TrendingUp className="w-5 h-5 text-brand" />
+            Top Engajadores (Volume de Leads)
           </h3>
           <div className="space-y-4 relative z-10">
-            {stats.topReceptionistsVolume.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado.</p>
+            {stats.topReceptionistsByVolume.length === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período selecionado.</p>
             ) : (
-              stats.topReceptionistsVolume.map(([name, data], idx) => (
+              stats.topReceptionistsByVolume.map(([name, data], idx) => (
                 <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
                   <div className="flex items-center gap-3">
                     <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-950 font-bold text-sm text-zinc-500 border border-zinc-800">
@@ -261,7 +260,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
                     <span className="font-semibold text-zinc-200">{name}</span>
                   </div>
                   <div className="text-right">
-                    <span className="block text-xs text-zinc-500 font-medium uppercase">Leads</span>
+                    <span className="block text-xs text-zinc-500 font-medium uppercase">Leads Inseridos</span>
                     <span className="font-bold text-brand">{data.created}</span>
                   </div>
                 </div>
@@ -270,32 +269,32 @@ export function DashboardTab({ records }: DashboardTabProps) {
           </div>
         </div>
 
-        {/* Painel Engajadores QUALIDADE/CONVERSÃO */}
+        {/* Painel Qualidade de Conversão */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
            <div className="absolute top-0 right-0 p-8 opacity-5">
             <Target className="w-48 h-48" />
           </div>
           <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2 mb-6">
-            <TrendingUp className="w-5 h-5 text-blue-500" />
-            Top Engajadores (Conversão)
+            <Zap className="w-5 h-5 text-emerald-500" />
+            Top ROI (Melhor Conversão)
           </h3>
           <div className="space-y-4 relative z-10">
-            {stats.topReceptionistsConversion.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado.</p>
+            {stats.topReceptionistsByConversion.length === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-6">Aguardando leads suficientes para análise (mín. 3).</p>
             ) : (
-              stats.topReceptionistsConversion.map(([name, data], idx) => {
+              stats.topReceptionistsByConversion.map(([name, data], idx) => {
                 const cRate = data.created > 0 ? Math.round((data.conversions / data.created) * 100) : 0;
                 return (
                   <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
                     <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-950 font-bold text-sm text-zinc-500 border border-zinc-800">
+                      <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-sm ${idx === 0 ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30' : 'bg-zinc-950 text-zinc-500 border border-zinc-800'}`}>
                         {idx + 1}
                       </span>
                       <span className="font-semibold text-zinc-200">{name}</span>
                     </div>
                     <div className="text-right">
-                      <span className="block text-xs text-zinc-500 font-medium uppercase">Aproveitamento</span>
-                      <span className="font-bold text-blue-400">{cRate}%</span>
+                      <span className="block text-xs text-zinc-500 font-medium uppercase">Taxa ROI</span>
+                      <span className="font-bold text-emerald-400">{cRate}%</span>
                     </div>
                   </div>
                 );
