@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ReferralRecord } from '../types';
-import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown, AlertTriangle } from 'lucide-react';
 
 interface DashboardTabProps {
   records: ReferralRecord[];
@@ -45,18 +45,18 @@ export function DashboardTab({ records }: DashboardTabProps) {
     let totalLeads = 0;
     let contactedLeads = 0;
     let convertedLeads = 0;
+    let noResponseLeads = 0;
 
-    const barberPerformance: Record<string, { leads: number, conversions: number }> = {};
+    const barberPerformance: Record<string, { leads: number, conversions: number, noResponse: number }> = {};
     const receptionistPerformance: Record<string, { created: number }> = {};
 
     filteredRecords.forEach(record => {
       const bName = record.barberName || 'Desconhecido';
       const rName = record.createdByName || 'Sistema';
 
-      if (!barberPerformance[bName]) barberPerformance[bName] = { leads: 0, conversions: 0 };
+      if (!barberPerformance[bName]) barberPerformance[bName] = { leads: 0, conversions: 0, noResponse: 0 };
       if (!receptionistPerformance[rName]) receptionistPerformance[rName] = { created: 0 };
 
-      // Contabiliza total de leads daquele lote e adiciona pros rankings
       const validContacts = record.contacts || [];
       const loteSize = validContacts.length;
 
@@ -64,12 +64,15 @@ export function DashboardTab({ records }: DashboardTabProps) {
       barberPerformance[bName].leads += loteSize;
       receptionistPerformance[rName].created += loteSize;
 
-      // Confere ações dentro dos leads do lote
       validContacts.forEach(contact => {
-        if (contact.called) {
+        if (contact.status && contact.status !== 'pending') {
           contactedLeads++;
         }
-        if (contact.subscriptionClosed) {
+        if (contact.status === 'no_response') {
+          noResponseLeads++;
+          barberPerformance[bName].noResponse++;
+        }
+        if (contact.status === 'converted' || contact.subscriptionClosed) {
           convertedLeads++;
           barberPerformance[bName].conversions++;
         }
@@ -78,6 +81,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
 
     const contactRate = totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0;
     const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
+    const noResponseRate = contactedLeads > 0 ? Math.round((noResponseLeads / contactedLeads) * 100) : 0;
 
     // Ordenação do Top 5 Barbeiros (pela qtde de conversões, depois leads)
     const topBarbers = Object.entries(barberPerformance)
@@ -91,7 +95,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
       .sort((a, b) => b[1].created - a[1].created)
       .slice(0, 5);
 
-    return { totalLeads, contactRate, contactedLeads, conversionRate, convertedLeads, topBarbers, topReceptionists };
+    return { totalLeads, contactRate, contactedLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionists };
   }, [filteredRecords]);
 
   // UI Components Extras
@@ -120,8 +124,8 @@ export function DashboardTab({ records }: DashboardTabProps) {
             <BarChart3 className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-zinc-100">Analytics & Dashboard</h2>
-            <p className="text-sm text-zinc-400">Desempenho operacional do seu espaço</p>
+            <h2 className="text-xl font-bold text-zinc-100">ROI & Analytics</h2>
+            <p className="text-sm text-zinc-400">Desempenho real das indicações e conversões</p>
           </div>
         </div>
 
@@ -154,21 +158,21 @@ export function DashboardTab({ records }: DashboardTabProps) {
         <StatisticCard 
           title="Total de Leads" 
           value={stats.totalLeads} 
-          subtitle="Cadastros Novos Recebidos"
+          subtitle="Oportunidades Recebidas"
           icon={Users} 
           color="blue" 
         />
         <StatisticCard 
-          title="Taxa de Contato" 
-          value={`${stats.contactRate}%`} 
-          subtitle={`${stats.contactedLeads} leads contatados`}
-          icon={Zap} 
-          color="yellow" 
+          title="Taxa de Vácuo" 
+          value={`${stats.noResponseRate}%`} 
+          subtitle={`${stats.noResponseLeads} leads sem resposta`}
+          icon={AlertTriangle} 
+          color="orange" 
         />
         <StatisticCard 
-          title="Conversão (Assinou)" 
+          title="ROI Conversão" 
           value={`${stats.conversionRate}%`} 
-          subtitle={`${stats.convertedLeads} novas assinaturas`}
+          subtitle={`${stats.convertedLeads} assinaturas fechadas`}
           icon={Target} 
           color="emerald" 
         />
