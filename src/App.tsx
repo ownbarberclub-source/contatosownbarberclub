@@ -28,6 +28,7 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ReferralRecord | null>(null);
   const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
+  const [isDirectSaleMode, setIsDirectSaleMode] = useState(false);
 
   // ── Hub SSO Authentication ───────────────────────────────────
   useEffect(() => {
@@ -287,7 +288,6 @@ export default function App() {
         barber_name: updatedRecord.barberName,
         contacts: updatedRecord.contacts,
         is_direct_sale: updatedRecord.isDirectSale,
-        plan_type: updatedRecord.planType
       };
 
       await supabase.from('referral_records').update(dbData).eq('id', updatedRecord.id);
@@ -308,7 +308,6 @@ export default function App() {
         barber_name: newRecord.barberName,
         contacts: newRecord.contacts,
         is_direct_sale: newRecord.isDirectSale,
-        plan_type: newRecord.planType,
         createdByName: newRecord.createdByName
       };
 
@@ -395,18 +394,18 @@ export default function App() {
     }> = {};
 
     records.forEach(record => {
-      if (!record.clientCpf) return; // Pula se não tiver CPF (evita erro de agrupamento)
+      // Usa CPF como chave primária, mas se não tiver, usa o Nome do Cliente ou o ID do registro
       const cpf = cleanCPF(record.clientCpf);
-      if (!cpf) return;
+      const groupKey = cpf || record.clientName?.toLowerCase().trim() || record.id;
       
-      if (!groups[cpf]) {
-        groups[cpf] = {
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
           clientName: record.clientName || 'Cliente Sem Nome',
-          clientCpf: record.clientCpf,
+          clientCpf: record.clientCpf || 'Sem CPF',
           batches: [],
         };
       }
-      groups[cpf].batches.push(record);
+      groups[groupKey].batches.push(record);
     });
 
     return Object.values(groups);
@@ -654,7 +653,24 @@ export default function App() {
                       </>
                     )}
                     <button
-                      onClick={openNewModal}
+                      onClick={() => {
+                        setEditingRecord(null);
+                        setPreFilledClient(null);
+                        setIsDirectSaleMode(true);
+                        setIsModalOpen(true);
+                      }}
+                      className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-500/20"
+                    >
+                      <Scissors className="w-4 h-4" />
+                      <span className="hidden sm:inline">Venda Direta</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingRecord(null);
+                        setPreFilledClient(null);
+                        setIsDirectSaleMode(false);
+                        setIsModalOpen(true);
+                      }}
                       className="flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
                     >
                       <Plus className="w-4 h-4" />
@@ -852,6 +868,7 @@ export default function App() {
         records={records}
         barbers={barbers}
         preFilledClient={preFilledClient}
+        defaultDirectSale={isDirectSaleMode}
       />
     </div>
   );

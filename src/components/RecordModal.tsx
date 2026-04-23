@@ -11,9 +11,10 @@ interface RecordModalProps {
   records: ReferralRecord[];
   barbers: Barber[];
   preFilledClient?: { cpf: string; name: string } | null;
+  defaultDirectSale?: boolean;
 }
 
-export function RecordModal({ isOpen, onClose, onSave, initialData, records, barbers, preFilledClient }: RecordModalProps) {
+export function RecordModal({ isOpen, onClose, onSave, initialData, records, barbers, preFilledClient, defaultDirectSale = false }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
   const [barberId, setBarberId] = useState('');
@@ -21,9 +22,7 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
-
   const [isDirectSale, setIsDirectSale] = useState(false);
-  const [planType, setPlanType] = useState('');
 
   useEffect(() => {
     setPhoneError('');
@@ -31,7 +30,6 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
       setClientName(initialData.clientName);
       setClientCpf(initialData.clientCpf);
       setIsDirectSale(!!initialData.isDirectSale);
-      setPlanType(initialData.planType || '');
       
       // Match barberId or figure it out from barberName for old records if possible
       if (initialData.barberId) {
@@ -58,10 +56,9 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
       setContacts([]);
       setNewContactName('');
       setNewContactPhone('');
-      setIsDirectSale(false);
-      setPlanType('');
+      setIsDirectSale(defaultDirectSale);
     }
-  }, [initialData, preFilledClient, isOpen, barbers]);
+  }, [initialData, preFilledClient, isOpen, barbers, defaultDirectSale]);
 
   // Auto-fill when typing CPF
   useEffect(() => {
@@ -153,7 +150,6 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
       barberName: selectedBarber?.name || '',
       contacts,
       isDirectSale,
-      planType,
     });
     onClose();
   };
@@ -235,23 +231,6 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDirectSale ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
-
-              {isDirectSale && (
-                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Tipo de Plano Vendido</label>
-                  <select
-                    required={isDirectSale}
-                    value={planType}
-                    onChange={(e) => setPlanType(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50"
-                  >
-                    <option value="">Selecione o plano...</option>
-                    <option value="Trimestral">Trimestral</option>
-                    <option value="Semestral">Semestral</option>
-                    <option value="Anual">Anual</option>
-                  </select>
-                </div>
-              )}
             </div>
 
             <div className="space-y-3">
