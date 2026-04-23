@@ -72,7 +72,12 @@ export function DashboardTab({ records }: DashboardTabProps) {
           noResponseLeads++;
           barberPerformance[bName].noResponse++;
         }
-        if (contact.status === 'converted' || contact.subscriptionClosed) {
+        // Prioritiza o novo sistema de status para o Analytics
+        const isConverted = contact.status 
+          ? contact.status === 'converted' 
+          : contact.subscriptionClosed;
+
+        if (isConverted) {
           convertedLeads++;
           barberPerformance[bName].conversions++;
         }

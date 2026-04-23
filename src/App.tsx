@@ -211,15 +211,27 @@ export default function App() {
         const newContacts = record.contacts.map(contact => {
           if (contact.id === contactId) {
             const updatedContact = { ...contact, ...updates };
-            // Auto-set calledAt if status changes to contacted
-            if (updates.status === 'contacted' || updates.status === 'converted') {
-              const timeString = new Date().toISOString().split('T')[1] || '00:00:00.000Z';
-              updatedContact.calledAt = `${selectedDate}T${timeString}`;
-              updatedContact.called = true;
+            
+            // Sincroniza campos legados com o novo sistema de status
+            if (updates.status) {
+              if (updates.status === 'converted') {
+                updatedContact.subscriptionClosed = true;
+                updatedContact.called = true;
+                const timeString = new Date().toISOString().split('T')[1] || '00:00:00.000Z';
+                if (!updatedContact.calledAt) updatedContact.calledAt = `${selectedDate}T${timeString}`;
+              } else if (updates.status === 'pending') {
+                updatedContact.subscriptionClosed = false;
+                updatedContact.called = false;
+                updatedContact.calledAt = undefined;
+              } else {
+                // contacted, no_response, declined
+                updatedContact.subscriptionClosed = false;
+                updatedContact.called = true;
+                const timeString = new Date().toISOString().split('T')[1] || '00:00:00.000Z';
+                if (!updatedContact.calledAt) updatedContact.calledAt = `${selectedDate}T${timeString}`;
+              }
             }
-            if (updates.status === 'converted') {
-              updatedContact.subscriptionClosed = true;
-            }
+            
             return updatedContact;
           }
           return contact;
