@@ -203,20 +203,24 @@ export default function App() {
     }
   };
 
-  const toggleContactField = async (recordId: string, contactId: string, field: 'called' | 'subscriptionClosed') => {
+  const updateContactData = async (recordId: string, contactId: string, updates: Partial<ContactPerson>) => {
     let updatedRecordToSave: ReferralRecord | null = null;
     
     setRecords(records.map(record => {
       if (record.id === recordId) {
         const newContacts = record.contacts.map(contact => {
           if (contact.id === contactId) {
-            const newValue = !contact[field];
-            const updates: Partial<ContactPerson> = { [field]: newValue };
-            if (field === 'called') {
+            const updatedContact = { ...contact, ...updates };
+            // Auto-set calledAt if status changes to contacted
+            if (updates.status === 'contacted' || updates.status === 'converted') {
               const timeString = new Date().toISOString().split('T')[1] || '00:00:00.000Z';
-              updates.calledAt = newValue ? `${selectedDate}T${timeString}` : undefined;
+              updatedContact.calledAt = `${selectedDate}T${timeString}`;
+              updatedContact.called = true;
             }
-            return { ...contact, ...updates };
+            if (updates.status === 'converted') {
+              updatedContact.subscriptionClosed = true;
+            }
+            return updatedContact;
           }
           return contact;
         });
@@ -297,15 +301,18 @@ export default function App() {
 
   const stats = useMemo(() => {
     const allContacts = records.flatMap(r => r.contacts || []);
+    const called = allContacts.filter(c => c.status && c.status !== 'pending').length;
+    const converted = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
+    const noResponse = allContacts.filter(c => c.status === 'no_response').length;
 
     return {
       totalClients: new Set(records.map(r => cleanCPF(r.clientCpf))).size,
       totalLeads: allContacts.length,
-      leadsToCall: allContacts.filter(c => !c.called).length, // Global total
-      leadsCalled: allContacts.filter(c => c.called && c.calledAt?.split('T')[0] === selectedDate).length, // Filtered by day
-      totalSubscriptions: allContacts.filter(c => c.subscriptionClosed).length, // Global total
+      leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
+      conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
+      noResponseRate: called > 0 ? Math.round((noResponse / called) * 100) : 0,
     };
-  }, [records, selectedDate]);
+  }, [records]);
 
   if (hubLoading) {
     return (
@@ -520,23 +527,23 @@ export default function App() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-blue-400">
                 <PhoneCall className="w-4 h-4" />
-                <p className="text-xs font-medium uppercase tracking-wider">Para Chamar</p>
+                <p className="text-xs font-medium uppercase tracking-wider">A Chamar</p>
               </div>
               <p className="text-2xl font-bold text-blue-400">{stats.leadsToCall}</p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-emerald-400">
-                <PhoneForwarded className="w-4 h-4" />
-                <p className="text-xs font-medium uppercase tracking-wider">Chamados</p>
+              <div className="flex items-center gap-2 text-orange-400">
+                <AlertTriangle className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">Taxa de Vácuo</p>
               </div>
-              <p className="text-2xl font-bold text-emerald-400">{stats.leadsCalled}</p>
+              <p className="text-2xl font-bold text-orange-400">{stats.noResponseRate}%</p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-brand">
-                <CheckCircle2 className="w-4 h-4" />
-                <p className="text-xs font-medium uppercase tracking-wider">Assinaturas</p>
+                <TrendingUp className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">ROI Conversão</p>
               </div>
-              <p className="text-2xl font-bold text-brand">{stats.totalSubscriptions}</p>
+              <p className="text-2xl font-bold text-brand">{stats.conversionRate}%</p>
             </div>
           </div>
         </div>
@@ -575,9 +582,8 @@ export default function App() {
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Lead</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Telefone</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Barbeiro</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Registrado Por</th>
-                        <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Assinatura</th>
+                        <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status ROI</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Notas / Observações</th>
                         <th className="px-6 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Ações</th>
                       </tr>
                     </thead>
@@ -598,42 +604,33 @@ export default function App() {
                               </a>
                             </td>
                             <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">{batch.barberName}</td>
-                            <td className="px-6 py-3 whitespace-nowrap">
-                              {batch.createdByName ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-800 text-zinc-300">
-                                  {batch.createdByName}
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-800/50 text-zinc-500">
-                                  Sistema
-                                </span>
-                              )}
-                            </td>
                             <td className="px-6 py-3 whitespace-nowrap text-center">
-                              <button
-                                onClick={() => toggleContactField(batch.id, contact.id, 'called')}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                                  contact.called 
-                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20' 
-                                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700'
+                              <select
+                                value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
+                                onChange={(e) => updateContactData(batch.id, contact.id, { status: e.target.value as any })}
+                                className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors ${
+                                  contact.status === 'converted' || contact.subscriptionClosed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                                  contact.status === 'no_response' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
+                                  contact.status === 'declined' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+                                  contact.status === 'contacted' || contact.called ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
+                                  'text-zinc-500 border-zinc-700'
                                 }`}
                               >
-                                {contact.called ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
-                                {contact.called ? 'Chamado' : 'Pendente'}
-                              </button>
+                                <option value="pending">Pendente</option>
+                                <option value="contacted">Contatado</option>
+                                <option value="no_response">Não Respondeu</option>
+                                <option value="declined">Recusou</option>
+                                <option value="converted">Assinou ✅</option>
+                              </select>
                             </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-center">
-                              <button
-                                onClick={() => toggleContactField(batch.id, contact.id, 'subscriptionClosed')}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                                  contact.subscriptionClosed 
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20' 
-                                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700'
-                                }`}
-                              >
-                                {contact.subscriptionClosed ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
-                                {contact.subscriptionClosed ? 'Fechada' : 'Pendente'}
-                              </button>
+                            <td className="px-6 py-3">
+                              <input 
+                                type="text"
+                                placeholder="Adicionar nota..."
+                                value={contact.notes || ''}
+                                onChange={(e) => updateContactData(batch.id, contact.id, { notes: e.target.value })}
+                                className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700"
+                              />
                             </td>
                             <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                               <button
