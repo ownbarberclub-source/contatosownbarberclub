@@ -234,6 +234,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
             )}
           </div>
         </div>
+      </div>
 
       {/* Rankings de Engajadores (Duas Colunas) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
