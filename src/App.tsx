@@ -123,7 +123,7 @@ export default function App() {
     const { data: recordsData } = await supabase
       .from('referral_records')
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('created_at', { ascending: false });
     
     if (recordsData) {
       const mappedRecords = recordsData.map((r: any) => ({
@@ -134,7 +134,7 @@ export default function App() {
         barberName: r.barber_name || 'Desconhecido',
         isDirectSale: !!r.is_direct_sale,
         planType: r.plan_type || '',
-        createdAt: r.createdAt
+        createdAt: r.created_at || r.createdAt // Fallback para ambos os formatos
       }));
       setRecords(mappedRecords);
     }
