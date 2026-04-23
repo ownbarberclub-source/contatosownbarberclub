@@ -210,7 +210,14 @@ export default function App() {
           ? updatedRecord
           : r
       ));
-      await supabase.from('referral_records').update(updatedRecord).eq('id', updatedRecord.id);
+      try {
+        const { error } = await supabase.from('referral_records').update(updatedRecord).eq('id', updatedRecord.id);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Erro ao atualizar registro:", err);
+        alert("Erro ao salvar alterações no servidor!");
+        loadAppData();
+      }
     } else {
       const newRecord: ReferralRecord = {
         ...recordData,
@@ -219,7 +226,14 @@ export default function App() {
         createdByName: currentUser.name,
       };
       setRecords([newRecord, ...records]);
-      await supabase.from('referral_records').insert([newRecord]);
+      try {
+        const { error } = await supabase.from('referral_records').insert([newRecord]);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Erro ao inserir registro:", err);
+        alert("Erro ao criar novo registro no servidor!");
+        loadAppData();
+      }
     }
   };
 
@@ -265,8 +279,15 @@ export default function App() {
     }));
 
     if (updatedRecordToSave) {
-      // @ts-ignore
-      await supabase.from('referral_records').update({ contacts: updatedRecordToSave.contacts }).eq('id', updatedRecordToSave.id);
+      try {
+        // @ts-ignore
+        const { error } = await supabase.from('referral_records').update({ contacts: updatedRecordToSave.contacts }).eq('id', updatedRecordToSave.id);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Erro ao atualizar contato:", err);
+        alert("Falha ao salvar alteração no banco de dados.");
+        loadAppData(); // Recarrega para não ficar com dado falso na tela
+      }
     }
   };
 
