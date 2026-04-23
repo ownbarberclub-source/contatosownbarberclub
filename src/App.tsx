@@ -270,9 +270,27 @@ export default function App() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este registro?')) {
+    if (window.confirm('Tem certeza que deseja excluir este lote de indicações?')) {
       setRecords(records.filter(r => r.id !== id));
       await supabase.from('referral_records').delete().eq('id', id);
+    }
+  };
+
+  const handleDeleteClient = async (cpf: string, name: string) => {
+    if (window.confirm(`AVISO: Deseja excluir o indicador "${name}" e TODAS as indicações dele? Esta ação não pode ser desfeita.`)) {
+      // Filtra localmente
+      setRecords(records.filter(r => cleanCPF(r.clientCpf) !== cleanCPF(cpf)));
+      // Deleta no banco
+      const { error } = await supabase
+        .from('referral_records')
+        .delete()
+        .eq('clientCpf', cpf);
+      
+      if (error) {
+        console.error("Erro ao excluir indicador:", error);
+        alert("Erro ao excluir. Tente novamente.");
+        loadAppData(); // Recarrega para garantir sincronia
+      }
     }
   };
 
@@ -617,13 +635,22 @@ export default function App() {
                     </h3>
                     <p className="text-sm text-zinc-400 mt-1">CPF: {group.clientCpf}</p>
                   </div>
-                  <button
-                    onClick={() => openNewModalWithClient(group.clientCpf, group.clientName)}
-                    className="flex items-center gap-2 bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar Leads
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openNewModalWithClient(group.clientCpf, group.clientName)}
+                      className="flex items-center gap-2 bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden sm:inline">Adicionar Leads</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClient(group.clientCpf, group.clientName)}
+                      className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                      title="Excluir Indicador e todos os leads"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Leads Table */}
