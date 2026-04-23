@@ -131,33 +131,34 @@ export default function App() {
     if (barbersData) setBarbers(barbersData);
   };
 
-  // Realtime Sync Subscription
+  // Realtime Sync Subscription - Reconfiguração Total
   useEffect(() => {
-    if (!currentUser) return;
+    // Escuta global de mudanças - Independente de currentUser para teste de sinal
+    console.log("Monitorando banco de dados em tempo real...");
 
-    // Pequeno delay para garantir que a sessão foi propagada no cliente
-    const timer = setTimeout(() => {
-      console.log("Iniciando Realtime para:", currentUser.email);
+    const channel = supabase.channel('global-sync-v2')
+      .on(
+        'postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'referral_records' 
+        }, 
+        (payload) => {
+          console.log("!!! MUDANÇA DETECTADA NO BANCO !!!", payload);
+          // Força um pequeno delay para o banco processar e então recarrega
+          setTimeout(() => loadAppData(), 500);
+        }
+      )
+      .subscribe((status) => {
+        console.log("Conexão Realtime:", status);
+        setDebugMsg(prev => `${prev.split(' | SYNC:')[0]} | SYNC:${status}`);
+      });
 
-      const channel = supabase.channel('db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, (payload) => {
-          console.log("Mudança detectada em records:", payload);
-          loadAppData();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
-        .subscribe((status) => {
-          console.log("Status do Realtime:", status);
-          setDebugMsg(prev => `${prev} | SYNC:${status}`);
-        });
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [currentUser]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
