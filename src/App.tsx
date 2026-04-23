@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw } from 'lucide-react';
 import Logo from './assets/logo.png';
 import { ReferralRecord, ContactPerson, User, Unit, Barber } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
@@ -135,24 +135,28 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
 
-    console.log("Iniciando Realtime para:", currentUser.email);
+    // Pequeno delay para garantir que a sessão foi propagada no cliente
+    const timer = setTimeout(() => {
+      console.log("Iniciando Realtime para:", currentUser.email);
 
-    const channel = supabase.channel('realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, (payload) => {
-        console.log("Mudança detectada em records:", payload);
-        loadAppData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
-      .subscribe((status) => {
-        console.log("Status do Realtime:", status);
-        setDebugMsg(prev => `${prev} | SYNC:${status}`);
-      });
+      const channel = supabase.channel('db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'referral_records' }, (payload) => {
+          console.log("Mudança detectada em records:", payload);
+          loadAppData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_barbers' }, () => loadAppData())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'previa_units' }, () => loadAppData())
+        .subscribe((status) => {
+          console.log("Status do Realtime:", status);
+          setDebugMsg(prev => `${prev} | SYNC:${status}`);
+        });
 
-    return () => {
-      console.log("Limpando canal Realtime");
-      supabase.removeChannel(channel);
-    };
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, [currentUser]);
 
   const handleLogout = async () => {
@@ -532,6 +536,13 @@ export default function App() {
                         </button>
                       </>
                     )}
+                    <button
+                      onClick={() => { loadAppData(); }}
+                      className="p-2.5 bg-zinc-800 text-zinc-400 rounded-xl hover:text-zinc-100 transition-colors border border-zinc-700"
+                      title="Sincronizar Manualmente"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={openNewModal}
                       className="flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
