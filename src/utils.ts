@@ -7,7 +7,8 @@ export const formatCPF = (value: string) => {
     .replace(/(-\d{2})\d+?$/, '$1');
 };
 
-export const cleanCPF = (value: string) => {
+export const cleanCPF = (value: string | null | undefined) => {
+  if (!value) return '';
   return value.replace(/\D/g, '');
 };
 
@@ -19,6 +20,7 @@ export const formatPhone = (value: string) => {
   return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7, 11)}`;
 };
 
-export const cleanPhone = (value: string) => {
+export const cleanPhone = (value: string | null | undefined) => {
+  if (!value) return '';
   return value.replace(/\D/g, '');
 };

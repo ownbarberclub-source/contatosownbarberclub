@@ -127,12 +127,12 @@ export default function App() {
     if (recordsData) {
       const mappedRecords = recordsData.map((r: any) => ({
         ...r,
-        clientName: r.client_name,
-        clientCpf: r.client_cpf,
-        barberId: r.barber_id,
-        barberName: r.barber_name,
-        isDirectSale: r.is_direct_sale,
-        planType: r.plan_type,
+        clientName: r.client_name || 'Cliente Sem Nome',
+        clientCpf: r.client_cpf || '',
+        barberId: r.barber_id || '',
+        barberName: r.barber_name || 'Desconhecido',
+        isDirectSale: !!r.is_direct_sale,
+        planType: r.plan_type || '',
         createdAt: r.createdAt
       }));
       setRecords(mappedRecords);
@@ -395,10 +395,13 @@ export default function App() {
     }> = {};
 
     records.forEach(record => {
+      if (!record.clientCpf) return; // Pula se não tiver CPF (evita erro de agrupamento)
       const cpf = cleanCPF(record.clientCpf);
+      if (!cpf) return;
+      
       if (!groups[cpf]) {
         groups[cpf] = {
-          clientName: record.clientName,
+          clientName: record.clientName || 'Cliente Sem Nome',
           clientCpf: record.clientCpf,
           batches: [],
         };
