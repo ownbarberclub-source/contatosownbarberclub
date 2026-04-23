@@ -227,6 +227,7 @@ export default function App() {
   };
 
   const handleAddUser = async (userData: Omit<User, 'id'>) => {
+    if (!currentUser?.isAdmin) return;
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -524,27 +525,39 @@ export default function App() {
               </button>
               {(currentUser.isAdmin || currentUser.permissions?.includes('view_ranking')) && (
                 <button
-                  onClick={() => setActiveTab('barbeiros')}
+                  onClick={() => setActiveTab('barbers')}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'barbeiros' 
+                    activeTab === 'barbers' 
                       ? 'bg-zinc-800 text-brand' 
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                   }`}
                 >
-                  Barbeiros &amp; Rank
+                  Barbeiros
                 </button>
               )}
               {currentUser.isAdmin && (
-                <button
-                  onClick={() => setActiveTab('dashboard')}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'dashboard' 
-                      ? 'bg-zinc-800 text-brand' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
-                >
-                  Analytics
-                </button>
+                <>
+                  <button
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'dashboard' 
+                        ? 'bg-zinc-800 text-brand' 
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    Analytics
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('users')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'users' 
+                        ? 'bg-zinc-800 text-brand' 
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    Usuários
+                  </button>
+                </>
               )}
             </nav>
           </div>
