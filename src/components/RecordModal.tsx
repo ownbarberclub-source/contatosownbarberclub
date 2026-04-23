@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Scissors, UserPlus, Trash2 } from 'lucide-react';
 import { ReferralRecord, ContactPerson, Barber } from '../types';
 import { formatCPF, formatPhone, cleanCPF, cleanPhone } from '../utils';
 
