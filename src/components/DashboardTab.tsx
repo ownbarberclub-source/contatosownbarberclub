@@ -96,12 +96,22 @@ export function DashboardTab({ records }: DashboardTabProps) {
           : b[1].conversions - a[1].conversions)
       .slice(0, 5);
 
-    // Ordenação do Top 5 Secretários (pela qtde de leads criados)
-    const topReceptionists = Object.entries(receptionistPerformance)
+    // Ordenação do Top 5 Engajadores por VOLUME (leads criados)
+    const topReceptionistsVolume = Object.entries(receptionistPerformance)
       .sort((a, b) => b[1].created - a[1].created)
       .slice(0, 5);
 
-    return { totalLeads, contactRate, contactedLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionists };
+    // Ordenação do Top 5 Engajadores por CONVERSÃO (%)
+    const topReceptionistsConversion = Object.entries(receptionistPerformance)
+      .filter(([_, data]) => data.created > 0)
+      .sort((a, b) => {
+        const rateA = a[1].conversions / a[1].created;
+        const rateB = b[1].conversions / b[1].created;
+        return rateB - rateA || b[1].created - a[1].created;
+      })
+      .slice(0, 5);
+
+    return { totalLeads, contactRate, contactedLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionistsVolume, topReceptionistsConversion };
   }, [filteredRecords]);
 
   // UI Components Extras
@@ -184,8 +194,8 @@ export function DashboardTab({ records }: DashboardTabProps) {
         />
       </div>
 
-      {/* Painéis Secundários */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Painéis de Rankings */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Painel do Barbeiro */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
@@ -194,11 +204,11 @@ export function DashboardTab({ records }: DashboardTabProps) {
           </div>
           <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2 mb-6">
             <TrendingUp className="w-5 h-5 text-emerald-500" />
-            Top Performance (Barbeiros)
+            Top Barbeiros (ROI)
           </h3>
           <div className="space-y-4 relative z-10">
             {stats.topBarbers.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período selecionado.</p>
+              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período.</p>
             ) : (
               stats.topBarbers.map(([name, data], idx) => (
                 <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
@@ -210,12 +220,8 @@ export function DashboardTab({ records }: DashboardTabProps) {
                   </div>
                   <div className="flex gap-4">
                     <div className="text-right">
-                      <span className="block text-xs text-zinc-500 font-medium">CONVERSÃO</span>
+                      <span className="block text-xs text-zinc-500 font-medium">ROI</span>
                       <span className="font-bold text-emerald-400">{data.conversions}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="block text-xs text-zinc-500 font-medium">LEADS</span>
-                      <span className="font-bold text-zinc-300">{data.leads}</span>
                     </div>
                   </div>
                 </div>
@@ -224,20 +230,51 @@ export function DashboardTab({ records }: DashboardTabProps) {
           </div>
         </div>
 
-        {/* Painel da Equipe de Recepção */}
+        {/* Painel Engajadores VOLUME */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
            <div className="absolute top-0 right-0 p-8 opacity-5">
             <Users className="w-48 h-48" />
           </div>
           <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2 mb-6">
-            <TrendingUp className="w-5 h-5 text-brand" />
-            Top Engajadores (Cadastros)
+            <Zap className="w-5 h-5 text-brand" />
+            Top Engajadores (Volume)
           </h3>
           <div className="space-y-4 relative z-10">
-            {stats.topReceptionists.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período selecionado.</p>
+            {stats.topReceptionistsVolume.length === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado.</p>
             ) : (
-              stats.topReceptionists.map(([name, data], idx) => {
+              stats.topReceptionistsVolume.map(([name, data], idx) => (
+                <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-950 font-bold text-sm text-zinc-500 border border-zinc-800">
+                      {idx + 1}
+                    </span>
+                    <span className="font-semibold text-zinc-200">{name}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-xs text-zinc-500 font-medium uppercase">Leads</span>
+                    <span className="font-bold text-brand">{data.created}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Painel Engajadores QUALIDADE/CONVERSÃO */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+           <div className="absolute top-0 right-0 p-8 opacity-5">
+            <Target className="w-48 h-48" />
+          </div>
+          <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2 mb-6">
+            <TrendingUp className="w-5 h-5 text-blue-500" />
+            Top Engajadores (Conversão)
+          </h3>
+          <div className="space-y-4 relative z-10">
+            {stats.topReceptionistsConversion.length === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado.</p>
+            ) : (
+              stats.topReceptionistsConversion.map(([name, data], idx) => {
                 const cRate = data.created > 0 ? Math.round((data.conversions / data.created) * 100) : 0;
                 return (
                   <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
@@ -247,15 +284,9 @@ export function DashboardTab({ records }: DashboardTabProps) {
                       </span>
                       <span className="font-semibold text-zinc-200">{name}</span>
                     </div>
-                    <div className="flex gap-4">
-                      <div className="text-right">
-                        <span className="block text-xs text-zinc-500 font-medium">CONVERSÃO</span>
-                        <span className="font-bold text-brand">{cRate}%</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="block text-xs text-zinc-500 font-medium uppercase">Leads</span>
-                        <span className="font-bold text-zinc-300">{data.created}</span>
-                      </div>
+                    <div className="text-right">
+                      <span className="block text-xs text-zinc-500 font-medium uppercase">Aproveitamento</span>
+                      <span className="font-bold text-blue-400">{cRate}%</span>
                     </div>
                   </div>
                 );
