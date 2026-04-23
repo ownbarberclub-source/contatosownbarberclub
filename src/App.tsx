@@ -122,7 +122,21 @@ export default function App() {
       .from('referral_records')
       .select('*')
       .order('createdAt', { ascending: false });
-    if (recordsData) setRecords(recordsData);
+    
+    if (recordsData) {
+      // Mapeia snake_case do banco para camelCase do código
+      const mappedRecords = recordsData.map((r: any) => ({
+        ...r,
+        clientName: r.client_name,
+        clientCpf: r.client_cpf,
+        barberId: r.barber_id,
+        barberName: r.barber_name,
+        isDirectSale: r.is_direct_sale,
+        planType: r.plan_type,
+        createdAt: r.createdAt // Já está correto
+      }));
+      setRecords(mappedRecords);
+    }
 
     const { data: unitsData } = await supabase.from('previa_units').select('*');
     if (unitsData) setUnits(unitsData);
@@ -190,16 +204,40 @@ export default function App() {
           ? updatedRecord
           : r
       ));
-      await supabase.from('referral_records').update(updatedRecord).eq('id', updatedRecord.id);
+      
+      const dbData = {
+        client_name: updatedRecord.clientName,
+        client_cpf: updatedRecord.clientCpf,
+        barber_id: updatedRecord.barberId,
+        barber_name: updatedRecord.barberName,
+        contacts: updatedRecord.contacts,
+        is_direct_sale: updatedRecord.isDirectSale,
+        plan_type: updatedRecord.planType
+      };
+
+      await supabase.from('referral_records').update(dbData).eq('id', updatedRecord.id);
     } else {
       const newRecord: ReferralRecord = {
         ...recordData,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
-        createdByName: currentUser.name,
+        createdByName: currentUser?.name || 'Sistema',
       };
       setRecords([newRecord, ...records]);
-      await supabase.from('referral_records').insert([newRecord]);
+
+      const dbData = {
+        id: newRecord.id,
+        client_name: newRecord.clientName,
+        client_cpf: newRecord.clientCpf,
+        barber_id: newRecord.barberId,
+        barber_name: newRecord.barberName,
+        contacts: newRecord.contacts,
+        is_direct_sale: newRecord.isDirectSale,
+        plan_type: newRecord.planType,
+        createdByName: newRecord.createdByName
+      };
+
+      await supabase.from('referral_records').insert([dbData]);
     }
   };
 
