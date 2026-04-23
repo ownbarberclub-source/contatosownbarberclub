@@ -48,14 +48,14 @@ export function DashboardTab({ records }: DashboardTabProps) {
     let noResponseLeads = 0;
 
     const barberPerformance: Record<string, { leads: number, conversions: number, noResponse: number }> = {};
-    const receptionistPerformance: Record<string, { created: number }> = {};
+    const receptionistPerformance: Record<string, { created: number, conversions: number }> = {};
 
     filteredRecords.forEach(record => {
       const bName = record.barberName || 'Desconhecido';
       const rName = record.createdByName || 'Sistema';
 
       if (!barberPerformance[bName]) barberPerformance[bName] = { leads: 0, conversions: 0, noResponse: 0 };
-      if (!receptionistPerformance[rName]) receptionistPerformance[rName] = { created: 0 };
+      if (!receptionistPerformance[rName]) receptionistPerformance[rName] = { created: 0, conversions: 0 };
 
       const validContacts = record.contacts || [];
       const loteSize = validContacts.length;
@@ -80,6 +80,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
         if (isConverted) {
           convertedLeads++;
           barberPerformance[bName].conversions++;
+          receptionistPerformance[rName].conversions++;
         }
       });
     });
@@ -236,20 +237,29 @@ export function DashboardTab({ records }: DashboardTabProps) {
             {stats.topReceptionists.length === 0 ? (
               <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período selecionado.</p>
             ) : (
-              stats.topReceptionists.map(([name, data], idx) => (
-                <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-950 font-bold text-sm text-zinc-500 border border-zinc-800">
-                      {idx + 1}
-                    </span>
-                    <span className="font-semibold text-zinc-200">{name}</span>
+              stats.topReceptionists.map(([name, data], idx) => {
+                const cRate = data.created > 0 ? Math.round((data.conversions / data.created) * 100) : 0;
+                return (
+                  <div key={name} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-950 font-bold text-sm text-zinc-500 border border-zinc-800">
+                        {idx + 1}
+                      </span>
+                      <span className="font-semibold text-zinc-200">{name}</span>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="text-right">
+                        <span className="block text-xs text-zinc-500 font-medium">CONVERSÃO</span>
+                        <span className="font-bold text-brand">{cRate}%</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-xs text-zinc-500 font-medium uppercase">Leads</span>
+                        <span className="font-bold text-zinc-300">{data.created}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="block text-xs text-zinc-500 font-medium uppercase">Leads Inseridos</span>
-                    <span className="font-bold text-brand">{data.created}</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
