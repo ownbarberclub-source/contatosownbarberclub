@@ -313,18 +313,25 @@ export default function App() {
 
   const stats = useMemo(() => {
     const allContacts = records.flatMap(r => r.contacts || []);
-    const called = allContacts.filter(c => c.status && c.status !== 'pending').length;
+    const calledTotal = allContacts.filter(c => c.status && c.status !== 'pending').length;
     const converted = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
     const noResponse = allContacts.filter(c => c.status === 'no_response').length;
+    
+    const calledToday = allContacts.filter(c => 
+      c.status && 
+      c.status !== 'pending' && 
+      c.calledAt?.split('T')[0] === selectedDate
+    ).length;
 
     return {
       totalClients: new Set(records.map(r => cleanCPF(r.clientCpf))).size,
       totalLeads: allContacts.length,
       leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
+      calledToday,
       conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
-      noResponseRate: called > 0 ? Math.round((noResponse / called) * 100) : 0,
+      noResponseRate: calledTotal > 0 ? Math.round((noResponse / calledTotal) * 100) : 0,
     };
-  }, [records]);
+  }, [records, selectedDate]);
 
   if (hubLoading) {
     return (
@@ -521,7 +528,7 @@ export default function App() {
                 </div>
               </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-zinc-400">
                 <Users className="w-4 h-4" />
@@ -542,6 +549,13 @@ export default function App() {
                 <p className="text-xs font-medium uppercase tracking-wider">A Chamar</p>
               </div>
               <p className="text-2xl font-bold text-blue-400">{stats.leadsToCall}</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <PhoneForwarded className="w-4 h-4" />
+                <p className="text-xs font-medium uppercase tracking-wider">Chamados Hoje</p>
+              </div>
+              <p className="text-2xl font-bold text-emerald-400">{stats.calledToday}</p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-orange-400">
