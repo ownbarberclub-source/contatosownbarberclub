@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw } from 'lucide-react';
+import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw, Copy, Check } from 'lucide-react';
 import Logo from './assets/logo.png';
 import { ReferralRecord, ContactPerson, User, Unit, Barber } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
@@ -27,6 +27,7 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ReferralRecord | null>(null);
   const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   // ── Hub SSO Authentication ───────────────────────────────────
   useEffect(() => {
@@ -235,6 +236,13 @@ export default function App() {
         loadAppData();
       }
     }
+  };
+
+  const handleCopyPhone = (phone: string, id: string) => {
+    const clean = cleanPhone(phone);
+    navigator.clipboard.writeText(clean);
+    setCopyFeedback(id);
+    setTimeout(() => setCopyFeedback(null), 2000);
   };
 
   const handleUpdateBatchBarber = async (batchId: string, newBarberId: string) => {
@@ -720,16 +728,28 @@ export default function App() {
                           <tr key={contact.id} className="hover:bg-zinc-800/30 transition-colors">
                             <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-zinc-200">{contact.name}</td>
                             <td className="px-6 py-3 whitespace-nowrap">
-                              <a
-                                href={`https://wa.me/55${cleanPhone(contact.phone)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 px-2.5 py-1 rounded-md"
-                              >
-                                <MessageCircle className="w-4 h-4" />
-                                {contact.phone}
-                              </a>
-                            </td>
+                               <button
+                                 onClick={() => handleCopyPhone(contact.phone, contact.id)}
+                                 className={`inline-flex items-center gap-1.5 text-sm font-medium transition-all px-2.5 py-1 rounded-md border ${
+                                   copyFeedback === contact.id 
+                                     ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+                                     : 'bg-zinc-800/50 text-zinc-300 border-zinc-700/50 hover:bg-zinc-800 hover:text-white'
+                                 }`}
+                                 title="Clique para copiar o número"
+                               >
+                                 {copyFeedback === contact.id ? (
+                                   <>
+                                     <Check className="w-4 h-4" />
+                                     Copiado!
+                                   </>
+                                 ) : (
+                                   <>
+                                     <Copy className="w-4 h-4" />
+                                     {contact.phone}
+                                   </>
+                                 )}
+                               </button>
+                             </td>
                              <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">
                                <select
                                  value={batch.barberId || ''}
