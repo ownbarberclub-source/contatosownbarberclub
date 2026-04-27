@@ -205,14 +205,63 @@ export default function App() {
 
   const handleSaveRecord = async (recordData: Omit<ReferralRecord, 'id' | 'createdAt'>) => {
     if (editingRecord) {
-      const updatedRecord = { ...editingRecord, ...recordData };
-      setRecords(records.map(r => 
-        r.id === editingRecord.id 
-          ? updatedRecord
-          : r
-      ));
       try {
-        const { error } = await supabase.from('referral_records').update(updatedRecord).eq('id', updatedRecord.id);
+        // ── Merge seguro para ambientes multiusuário ──────────────────
+        // 1. Busca a versão ATUAL do registro no banco antes de salvar
+        const { data: freshData, error: fetchErr } = await supabase
+          .from('referral_records')
+          .select('contacts')
+          .eq('id', editingRecord.id)
+          .single();
+
+        if (fetchErr) throw fetchErr;
+
+        const dbContacts: ContactPerson[] = freshData?.contacts || [];
+
+        // IDs de contatos que existiam quando o modal foi aberto
+        const originalIds = new Set((editingRecord.contacts || []).map((c: ContactPerson) => c.id));
+        // IDs de contatos que o usuário está submetendo agora
+        const submittedIds = new Set((recordData.contacts || []).map((c: ContactPerson) => c.id));
+
+        // Contatos NOVOS adicionados por outros usuários no banco (não estavam no estado original)
+        const contactsAddedByOthers = dbContacts.filter(c => !originalIds.has(c.id));
+
+        // Contatos que o usuário atual submeteu (pode ter adicionado, editado ou removido)
+        const userContacts = recordData.contacts || [];
+
+        // Contatos do banco que o usuário não removeu explicitamente (merge das edições do usuário)
+        // Mantém edições do usuário (status, notes) se o ID existir nos dois lados
+        const mergedExistingContacts = dbContacts
+          .filter(c => submittedIds.has(c.id)) // o usuário não removeu
+          .map(c => {
+            const userVersion = userContacts.find(uc => uc.id === c.id);
+            return userVersion ? { ...c, ...userVersion } : c; // aplica edições do usuário
+          });
+
+        // Contatos novos adicionados pelo usuário atual (IDs que não existiam originalmente)
+        const newContactsFromUser = userContacts.filter(c => !originalIds.has(c.id));
+
+        // Lista final: contatos mesclados + novos do usuário atual + novos de outros usuários
+        const finalContacts: ContactPerson[] = [
+          ...mergedExistingContacts,
+          ...newContactsFromUser,
+          ...contactsAddedByOthers,
+        ];
+
+        const updatedRecord = {
+          ...editingRecord,
+          ...recordData,
+          contacts: finalContacts,
+        };
+
+        // Atualiza estado local com o merge
+        setRecords(records.map(r => r.id === editingRecord.id ? updatedRecord : r));
+
+        const { error } = await supabase
+          .from('referral_records')
+          .update(updatedRecord)
+          .eq('id', updatedRecord.id);
+
         if (error) throw error;
       } catch (err) {
         console.error("Erro ao atualizar registro:", err);
