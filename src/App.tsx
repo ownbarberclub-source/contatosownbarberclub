@@ -237,6 +237,32 @@ export default function App() {
     }
   };
 
+  const handleUpdateBatchBarber = async (batchId: string, newBarberId: string) => {
+    const selectedBarber = barbers.find(b => b.id === newBarberId);
+    if (!selectedBarber) return;
+
+    // Atualiza estado local para feedback instantâneo
+    setRecords(prev => prev.map(r => 
+      r.id === batchId ? { ...r, barberId: selectedBarber.id, barberName: selectedBarber.name } : r
+    ));
+
+    try {
+      const { error } = await supabase
+        .from('referral_records')
+        .update({ 
+          barberId: selectedBarber.id, 
+          barberName: selectedBarber.name 
+        })
+        .eq('id', batchId);
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error("Erro ao atualizar barbeiro:", err);
+      alert("Erro ao salvar alteração do barbeiro no servidor.");
+      loadAppData();
+    }
+  };
+
   const updateContactData = async (recordId: string, contactId: string, updates: Partial<ContactPerson>) => {
     let updatedRecordToSave: ReferralRecord | null = null;
     
@@ -704,7 +730,20 @@ export default function App() {
                                 {contact.phone}
                               </a>
                             </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">{batch.barberName}</td>
+                             <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">
+                               <select
+                                 value={batch.barberId || ''}
+                                 onChange={(e) => handleUpdateBatchBarber(batch.id, e.target.value)}
+                                 className="bg-transparent border-none text-zinc-400 hover:text-zinc-100 focus:text-zinc-100 focus:outline-none cursor-pointer p-0 w-full"
+                               >
+                                 <option value="" disabled className="bg-zinc-900 text-zinc-500">Selecione...</option>
+                                 {barbers.map(barber => (
+                                   <option key={barber.id} value={barber.id} className="bg-zinc-900 text-zinc-100">
+                                     {barber.name}
+                                   </option>
+                                 ))}
+                               </select>
+                             </td>
                             <td className="px-6 py-3 whitespace-nowrap text-center">
                               <select
                                 value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
