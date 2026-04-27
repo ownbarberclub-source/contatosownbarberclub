@@ -374,6 +374,41 @@ export default function App() {
     }
   };
 
+  /**
+   * Salva UM contato diretamente no banco usando merge seguro.
+   * Chamado imediatamente ao clicar "Incluir" no modal de edição,
+   * garantindo que o contato persista mesmo que o realtime recarregue os dados.
+   */
+  const handleAddContactImmediate = async (recordId: string, newContact: ContactPerson) => {
+    // Busca contatos atuais do banco para fazer merge sem sobrescrever
+    const { data: freshData, error: fetchErr } = await supabase
+      .from('referral_records')
+      .select('contacts')
+      .eq('id', recordId)
+      .single();
+
+    if (fetchErr) throw fetchErr;
+
+    const currentContacts: ContactPerson[] = freshData?.contacts || [];
+
+    // Evita duplicata caso já tenha sido salvo por outra operação
+    if (currentContacts.some(c => c.id === newContact.id)) return;
+
+    const updatedContacts = [...currentContacts, newContact];
+
+    const { error } = await supabase
+      .from('referral_records')
+      .update({ contacts: updatedContacts })
+      .eq('id', recordId);
+
+    if (error) throw error;
+
+    // Atualiza estado local para refletir imediatamente
+    setRecords(prev => prev.map(r =>
+      r.id === recordId ? { ...r, contacts: updatedContacts } : r
+    ));
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este lote de indicações?')) {
       setRecords(records.filter(r => r.id !== id));
@@ -884,6 +919,7 @@ export default function App() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveRecord}
+        onAddContact={handleAddContactImmediate}
         initialData={editingRecord}
         records={records}
         barbers={barbers}

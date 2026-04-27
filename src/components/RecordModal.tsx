@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Plus, Loader2 } from 'lucide-react';
 import { ReferralRecord, ContactPerson, Barber } from '../types';
 import { formatCPF, formatPhone, cleanCPF, cleanPhone } from '../utils';
 
@@ -7,13 +7,15 @@ interface RecordModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (record: Omit<ReferralRecord, 'id' | 'createdAt'>) => void;
+  /** Chamado imediatamente ao clicar "Incluir" quando há registro existente sendo editado */
+  onAddContact?: (recordId: string, contact: ContactPerson) => Promise<void>;
   initialData?: ReferralRecord | null;
   records: ReferralRecord[];
   barbers: Barber[];
   preFilledClient?: { cpf: string; name: string } | null;
 }
 
-export function RecordModal({ isOpen, onClose, onSave, initialData, records, barbers, preFilledClient }: RecordModalProps) {
+export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, records, barbers, preFilledClient }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
   const [barberId, setBarberId] = useState('');
@@ -21,23 +23,19 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [savingContact, setSavingContact] = useState(false);
 
+  // ─── Efeito de inicialização do formulário ───────────────────────────────
+  // IMPORTANTE: `barbers` foi removido das dependências propositalmente.
+  // Quando o realtime atualiza `barbers`, a referência do array muda e
+  // dispararia este efeito, resetando os contatos que o usuário ainda não salvou.
+  // O barberId legado (por nome) é tratado em um efeito separado abaixo.
   useEffect(() => {
     setPhoneError('');
     if (initialData) {
       setClientName(initialData.clientName);
       setClientCpf(initialData.clientCpf);
-      
-      // Match barberId or figure it out from barberName for old records if possible
-      if (initialData.barberId) {
-        setBarberId(initialData.barberId);
-      } else if (initialData.barberName) {
-        const found = barbers.find(b => b.name === initialData.barberName);
-        setBarberId(found ? found.id : '');
-      } else {
-        setBarberId('');
-      }
-
+      setBarberId(initialData.barberId || '');
       setContacts(initialData.contacts || []);
     } else if (preFilledClient) {
       setClientCpf(preFilledClient.cpf);
@@ -54,7 +52,19 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
       setNewContactName('');
       setNewContactPhone('');
     }
-  }, [initialData, preFilledClient, isOpen, barbers]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.id, preFilledClient?.cpf, isOpen]);
+
+  // Lookup de barberId por nome para registros antigos (sem barberId salvo)
+  const barberLookupDone = useRef(false);
+  useEffect(() => {
+    if (initialData && !initialData.barberId && initialData.barberName && !barberLookupDone.current) {
+      const found = barbers.find(b => b.name === initialData.barberName);
+      if (found) setBarberId(found.id);
+      barberLookupDone.current = true;
+    }
+    if (!initialData) barberLookupDone.current = false;
+  }, [initialData?.id, barbers]);
 
   // Auto-fill when typing CPF
   useEffect(() => {
@@ -71,7 +81,7 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
 
   if (!isOpen) return null;
 
-  const handleAddContact = () => {
+  const handleAddContact = async () => {
     if (!newContactName.trim() || !newContactPhone.trim()) return;
 
     const cleanedNewPhone = cleanPhone(newContactPhone);
@@ -91,16 +101,30 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
     }
 
     setPhoneError('');
-    setContacts([
-      ...contacts,
-      {
-        id: crypto.randomUUID(),
-        name: newContactName.trim(),
-        phone: newContactPhone.trim(),
-        subscriptionClosed: false,
-        called: false,
-      },
-    ]);
+    const newContact: ContactPerson = {
+      id: crypto.randomUUID(),
+      name: newContactName.trim(),
+      phone: newContactPhone.trim(),
+      subscriptionClosed: false,
+      called: false,
+    };
+
+    // ── Save-imediato: se estiver editando um registro existente, salva no banco agora ──
+    // Isso garante que o contato não seja perdido se o realtime recarregar antes do "Salvar Registro"
+    if (initialData?.id && onAddContact) {
+      setSavingContact(true);
+      try {
+        await onAddContact(initialData.id, newContact);
+      } catch (err) {
+        console.error('Erro ao salvar contato imediatamente:', err);
+        setPhoneError('Falha ao salvar contato. Tente novamente.');
+        setSavingContact(false);
+        return;
+      }
+      setSavingContact(false);
+    }
+
+    setContacts(prev => [...prev, newContact]);
     setNewContactName('');
     setNewContactPhone('');
   };
@@ -240,11 +264,11 @@ export function RecordModal({ isOpen, onClose, onSave, initialData, records, bar
                 <button
                   type="button"
                   onClick={handleAddContact}
-                  disabled={!newContactName.trim() || !newContactPhone.trim()}
+                  disabled={!newContactName.trim() || !newContactPhone.trim() || savingContact}
                   className="px-3 py-2 bg-zinc-800 text-zinc-100 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                 >
-                  <Plus size={16} />
-                  <span className="hidden sm:inline">Incluir</span>
+                  {savingContact ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                  <span className="hidden sm:inline">{savingContact ? 'Salvando...' : 'Incluir'}</span>
                 </button>
               </div>
               {phoneError && (
