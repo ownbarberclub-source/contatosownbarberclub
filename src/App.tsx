@@ -128,7 +128,7 @@ export default function App() {
     const { data: unitsData } = await supabase.from('previa_units').select('*');
     if (unitsData) setUnits(unitsData);
 
-    const { data: barbersData } = await supabase.from('previa_barbers').select('*');
+    const { data: barbersData } = await supabase.from('previa_barbers').select('*').eq('is_hidden_crm', false);
     if (barbersData) setBarbers(barbersData);
   };
 
