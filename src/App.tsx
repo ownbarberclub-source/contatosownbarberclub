@@ -147,8 +147,23 @@ export default function App() {
         }, 
         (payload) => {
           console.log("!!! MUDANÇA DETECTADA NO BANCO !!!", payload);
-          // Força um pequeno delay para o banco processar e então recarrega
-          setTimeout(() => loadAppData(), 500);
+          setRecords(prevRecords => {
+            if (payload.eventType === 'INSERT') {
+              // Evita duplicação caso o registro já tenha sido adicionado localmente na mesma sessão
+              if (prevRecords.some(r => r.id === payload.new.id)) return prevRecords;
+              // A nova indicação vem para o topo
+              return [payload.new as ReferralRecord, ...prevRecords];
+            }
+            if (payload.eventType === 'UPDATE') {
+              // Atualiza o registro específico que foi modificado por outra pessoa
+              return prevRecords.map(r => r.id === payload.new.id ? (payload.new as ReferralRecord) : r);
+            }
+            if (payload.eventType === 'DELETE') {
+              // Remove o registro deletado
+              return prevRecords.filter(r => r.id !== payload.old.id);
+            }
+            return prevRecords;
+          });
         }
       )
       .subscribe((status) => {
