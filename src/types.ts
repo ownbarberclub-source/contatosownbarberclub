@@ -5,7 +5,7 @@ export interface ContactPerson {
   subscriptionClosed?: boolean;
   called?: boolean;
   calledAt?: string;
-  status?: 'pending' | 'contacted' | 'no_response' | 'declined' | 'converted';
+  status?: 'pending' | 'contacted' | 'no_response' | 'declined' | 'scheduled' | 'converted';
   notes?: string;
 }
 

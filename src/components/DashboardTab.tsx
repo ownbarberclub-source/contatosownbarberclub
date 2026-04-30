@@ -45,6 +45,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
     let totalLeads = 0;
     let contactedLeads = 0;
     let convertedLeads = 0;
+    let scheduledLeads = 0;
     let noResponseLeads = 0;
 
     const barberPerformance: Record<string, { leads: number, conversions: number, noResponse: number }> = {};
@@ -72,6 +73,9 @@ export function DashboardTab({ records }: DashboardTabProps) {
           noResponseLeads++;
           barberPerformance[bName].noResponse++;
         }
+        if (contact.status === 'scheduled') {
+          scheduledLeads++;
+        }
         // Prioritiza o novo sistema de status para o Analytics
         const isConverted = contact.status 
           ? contact.status === 'converted' 
@@ -86,6 +90,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
     });
 
     const contactRate = totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0;
+    const scheduledRate = contactedLeads > 0 ? Math.round((scheduledLeads / contactedLeads) * 100) : 0;
     const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
     const noResponseRate = contactedLeads > 0 ? Math.round((noResponseLeads / contactedLeads) * 100) : 0;
 
@@ -112,7 +117,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
       })
       .slice(0, 5);
 
-    return { totalLeads, contactRate, contactedLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion };
+    return { totalLeads, contactRate, contactedLeads, scheduledRate, scheduledLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion };
   }, [filteredRecords]);
 
   // UI Components Extras
@@ -171,7 +176,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
       </div>
 
       {/* Cartões de KPI Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         <StatisticCard 
           title="Total de Leads" 
           value={stats.totalLeads} 
@@ -185,6 +190,13 @@ export function DashboardTab({ records }: DashboardTabProps) {
           subtitle={`${stats.noResponseLeads} leads sem resposta`}
           icon={AlertTriangle} 
           color="orange" 
+        />
+        <StatisticCard 
+          title="Agendamentos" 
+          value={`${stats.scheduledRate}%`} 
+          subtitle={`${stats.scheduledLeads} leads agendaram`}
+          icon={Target} 
+          color="purple" 
         />
         <StatisticCard 
           title="ROI Conversão" 

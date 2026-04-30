@@ -856,6 +856,7 @@ export default function App() {
                                   contact.status === 'converted' || contact.subscriptionClosed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
                                   contact.status === 'no_response' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
                                   contact.status === 'declined' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+                                  contact.status === 'scheduled' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' :
                                   contact.status === 'contacted' || contact.called ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
                                   'text-zinc-500 border-zinc-700'
                                 }`}
@@ -864,6 +865,7 @@ export default function App() {
                                 <option value="contacted">Contatado</option>
                                 <option value="no_response">Não Respondeu</option>
                                 <option value="declined">Recusou</option>
+                                <option value="scheduled">Agendou 📅</option>
                                 <option value="converted">Assinou ✅</option>
                               </select>
                             </td>
