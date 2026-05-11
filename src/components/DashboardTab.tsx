@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ReferralRecord } from '../types';
-import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown, AlertTriangle, PhoneOff, RefreshCcw } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown, AlertTriangle, PhoneOff, RefreshCcw, PhoneCall } from 'lucide-react';
 
 interface DashboardTabProps {
   records: ReferralRecord[];
@@ -186,12 +186,19 @@ export function DashboardTab({ records }: DashboardTabProps) {
       </div>
 
       {/* Cartões de KPI Principais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatisticCard 
           title="Total de Leads" 
           value={stats.totalLeads} 
           subtitle="Oportunidades Recebidas"
           icon={Users} 
+          color="blue" 
+        />
+        <StatisticCard 
+          title="Leads Chamados" 
+          value={stats.contactedLeads} 
+          subtitle={`${stats.contactRate}% do total`}
+          icon={PhoneCall} 
           color="blue" 
         />
         <StatisticCard 
