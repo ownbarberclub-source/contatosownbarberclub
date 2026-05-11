@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ReferralRecord } from '../types';
-import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown, AlertTriangle } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown, AlertTriangle, PhoneOff, RefreshCcw } from 'lucide-react';
 
 interface DashboardTabProps {
   records: ReferralRecord[];
@@ -47,6 +47,8 @@ export function DashboardTab({ records }: DashboardTabProps) {
     let convertedLeads = 0;
     let scheduledLeads = 0;
     let noResponseLeads = 0;
+    let invalidNumberLeads = 0;
+    let frequentLeads = 0;
 
     const barberPerformance: Record<string, { leads: number, conversions: number, noResponse: number }> = {};
     const receptionistPerformance: Record<string, { created: number, conversions: number }> = {};
@@ -73,6 +75,12 @@ export function DashboardTab({ records }: DashboardTabProps) {
           noResponseLeads++;
           barberPerformance[bName].noResponse++;
         }
+        if (contact.status === 'invalid_number') {
+          invalidNumberLeads++;
+        }
+        if (contact.status === 'frequent') {
+          frequentLeads++;
+        }
         if (contact.status === 'scheduled') {
           scheduledLeads++;
         }
@@ -93,6 +101,8 @@ export function DashboardTab({ records }: DashboardTabProps) {
     const scheduledRate = contactedLeads > 0 ? Math.round((scheduledLeads / contactedLeads) * 100) : 0;
     const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
     const noResponseRate = contactedLeads > 0 ? Math.round((noResponseLeads / contactedLeads) * 100) : 0;
+    const invalidNumberRate = contactedLeads > 0 ? Math.round((invalidNumberLeads / contactedLeads) * 100) : 0;
+    const frequentRate = contactedLeads > 0 ? Math.round((frequentLeads / contactedLeads) * 100) : 0;
 
     // Ordenação do Top 5 Barbeiros (pela qtde de conversões, depois leads)
     const topBarbers = Object.entries(barberPerformance)
@@ -117,7 +127,7 @@ export function DashboardTab({ records }: DashboardTabProps) {
       })
       .slice(0, 5);
 
-    return { totalLeads, contactRate, contactedLeads, scheduledRate, scheduledLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion };
+    return { totalLeads, contactRate, contactedLeads, scheduledRate, scheduledLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, invalidNumberRate, invalidNumberLeads, frequentRate, frequentLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion };
   }, [filteredRecords]);
 
   // UI Components Extras
@@ -176,20 +186,13 @@ export function DashboardTab({ records }: DashboardTabProps) {
       </div>
 
       {/* Cartões de KPI Principais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatisticCard 
           title="Total de Leads" 
           value={stats.totalLeads} 
           subtitle="Oportunidades Recebidas"
           icon={Users} 
           color="blue" 
-        />
-        <StatisticCard 
-          title="Taxa de Vácuo" 
-          value={`${stats.noResponseRate}%`} 
-          subtitle={`${stats.noResponseLeads} leads sem resposta`}
-          icon={AlertTriangle} 
-          color="orange" 
         />
         <StatisticCard 
           title="Agendamentos" 
@@ -204,6 +207,27 @@ export function DashboardTab({ records }: DashboardTabProps) {
           subtitle={`${stats.convertedLeads} assinaturas fechadas`}
           icon={Target} 
           color="emerald" 
+        />
+        <StatisticCard 
+          title="Taxa de Vácuo" 
+          value={`${stats.noResponseRate}%`} 
+          subtitle={`${stats.noResponseLeads} leads sem resposta`}
+          icon={AlertTriangle} 
+          color="orange" 
+        />
+        <StatisticCard 
+          title="Números Inválidos" 
+          value={`${stats.invalidNumberRate}%`} 
+          subtitle={`${stats.invalidNumberLeads} incorretos`}
+          icon={PhoneOff} 
+          color="zinc" 
+        />
+        <StatisticCard 
+          title="Frequentes" 
+          value={`${stats.frequentRate}%`} 
+          subtitle={`${stats.frequentLeads} já são clientes`}
+          icon={RefreshCcw} 
+          color="yellow" 
         />
       </div>
 
