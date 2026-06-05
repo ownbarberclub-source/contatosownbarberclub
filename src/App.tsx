@@ -128,7 +128,7 @@ export default function App() {
     const { data: unitsData } = await supabase.from('previa_units').select('*');
     if (unitsData) setUnits(unitsData);
 
-    const { data: barbersData } = await supabase.from('previa_barbers').select('*').eq('is_hidden_crm', false);
+    const { data: barbersData } = await supabase.from('previa_barbers').select('*').eq('is_hidden_crm', false).eq('is_active', true);
     if (barbersData) setBarbers(barbersData);
   };
 
@@ -214,7 +214,7 @@ export default function App() {
   const handleRemoveBarber = async (id: string) => {
     if (window.confirm('Tem certeza que deseja remover este barbeiro?')) {
       setBarbers(barbers.filter(b => b.id !== id));
-      await supabase.from('previa_barbers').delete().eq('id', id);
+      await supabase.from('previa_barbers').update({ is_active: false }).eq('id', id);
     }
   };
 
