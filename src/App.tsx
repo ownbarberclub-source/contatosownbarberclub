@@ -5,6 +5,7 @@ import { ReferralRecord, ContactPerson, User, Unit, Barber, Campaign } from './t
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
 import { RecordModal } from './components/RecordModal';
 import { BarbersTab } from './components/BarbersTab';
+import { UsersTab } from './components/UsersTab';
 import { DashboardTab } from './components/DashboardTab';
 import { exportToExcel, exportToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
@@ -16,7 +17,8 @@ export default function App() {
   const [debugMsg, setDebugMsg] = useState('');
   const [units, setUnits] = useState<Unit[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
-  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbers' | 'dashboard'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbeiros' | 'dashboard'>('leads');
+  const [users, setUsers] = useState<User[]>([]);
 
   const [records, setRecords] = useState<ReferralRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,6 +143,7 @@ export default function App() {
     // Carregar campanhas
     const { data: campaignsData } = await supabase
       .from('campaigns')
+      .select('*')
       .order('created_at', { ascending: false });
     if (campaignsData) {
       setCampaigns(campaignsData);
@@ -149,6 +152,20 @@ export default function App() {
       if (active && selectedCampaignId === 'all') {
         setSelectedCampaignId(active.id);
       }
+    }
+
+    // Carregar usuários do hub_profiles
+    const { data: usersData } = await supabase.from('hub_profiles').select('*');
+    if (usersData) {
+      const mappedUsers: User[] = usersData.map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email || '',
+        password: '',
+        isAdmin: u.role === 'admin',
+        permissions: u.permissions || []
+      }));
+      setUsers(mappedUsers);
     }
   };
 
@@ -266,6 +283,50 @@ export default function App() {
     if (!record || !record.campaign_id) return false;
     const cmp = campaigns.find(c => c.id === record.campaign_id);
     return cmp ? cmp.status === 'ended' : false;
+  };
+
+  const handleAddUser = async (userData: Omit<User, 'id'>) => {
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+      options: { data: { name: userData.name } }
+    });
+
+    if (authErr) {
+      alert(`Erro ao criar usuário: ${authErr.message}`);
+      return;
+    }
+
+    if (authData.user) {
+      const newUserProfile = {
+        id: authData.user.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.isAdmin ? 'admin' : 'operator',
+        permissions: userData.permissions,
+        is_active: true
+      };
+      await supabase.from('hub_profiles').insert([newUserProfile]);
+      loadAppData();
+    }
+  };
+
+  const handleUpdateUser = async (id: string, data: Partial<User>) => {
+    const dbUpdates: any = {};
+    if (data.name) dbUpdates.name = data.name;
+    if (data.email) dbUpdates.email = data.email;
+    if (data.isAdmin !== undefined) dbUpdates.role = data.isAdmin ? 'admin' : 'operator';
+    if (data.permissions) dbUpdates.permissions = data.permissions;
+
+    await supabase.from('hub_profiles').update(dbUpdates).eq('id', id);
+    loadAppData();
+  };
+
+  const handleRemoveUser = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover este usuário?')) {
+      await supabase.from('hub_profiles').update({ is_active: false }).eq('id', id);
+      loadAppData();
+    }
   };
 
   const handleAddUnit = async (name: string) => {
@@ -756,6 +817,18 @@ export default function App() {
                   Analytics
                 </button>
               )}
+              {currentUser.isAdmin && (
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'users' 
+                      ? 'bg-zinc-800 text-brand' 
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  }`}
+                >
+                  Usuários
+                </button>
+              )}
             </nav>
           </div>
 
@@ -781,7 +854,7 @@ export default function App() {
             onAddUser={handleAddUser} 
             onRemoveUser={handleRemoveUser} 
             onUpdateUser={handleUpdateUser}
-            currentUser={currentUser} 
+            currentUser={currentUser!} 
           />
         ) : activeTab === 'barbeiros' ? (
           <BarbersTab
