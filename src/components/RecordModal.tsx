@@ -10,12 +10,13 @@ interface RecordModalProps {
   /** Chamado imediatamente ao clicar "Incluir" quando há registro existente sendo editado */
   onAddContact?: (recordId: string, contact: ContactPerson) => Promise<void>;
   initialData?: ReferralRecord | null;
+  isReadOnly?: boolean;
   records: ReferralRecord[];
   barbers: Barber[];
   preFilledClient?: { cpf: string; name: string } | null;
 }
 
-export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, records, barbers, preFilledClient }: RecordModalProps) {
+export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, isReadOnly = false, records, barbers, preFilledClient }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
   const [barberId, setBarberId] = useState('');
@@ -178,7 +179,7 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
           <h2 className="text-xl font-semibold text-zinc-100">
-            {initialData ? 'Editar Registro' : 'Novo Registro'}
+            {initialData ? (isReadOnly ? 'Visualizar Registro' : 'Editar Registro') : 'Novo Registro'}
           </h2>
           <button
             onClick={onClose}
@@ -195,11 +196,12 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                 Nome do Cliente
               </label>
               <input
+                disabled={isReadOnly}
                 type="text"
                 required
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Ex: João Silva"
               />
             </div>
@@ -209,12 +211,13 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                 CPF do Cliente
               </label>
               <input
+                disabled={isReadOnly}
                 type="text"
                 required
                 value={clientCpf}
                 onChange={(e) => setClientCpf(formatCPF(e.target.value))}
                 maxLength={14}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="000.000.000-00"
               />
             </div>
@@ -224,10 +227,11 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                 Barbeiro Solicitante
               </label>
               <select
+                disabled={isReadOnly}
                 required
                 value={barberId}
                 onChange={(e) => setBarberId(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">Selecione um barbeiro...</option>
                 {barbers.map(barber => (
@@ -240,37 +244,39 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
               <label className="block text-sm font-medium text-zinc-300">
                 Contatos Indicados
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newContactName}
-                  onChange={(e) => setNewContactName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Nome do contato"
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50"
-                />
-                <input
-                  type="text"
-                  value={newContactPhone}
-                  onChange={(e) => {
-                    setNewContactPhone(formatPhone(e.target.value));
-                    if (phoneError) setPhoneError('');
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder="(00) 00000-0000"
-                  maxLength={15}
-                  className="w-36 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddContact}
-                  disabled={!newContactName.trim() || !newContactPhone.trim() || savingContact}
-                  className="px-3 py-2 bg-zinc-800 text-zinc-100 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                >
-                  {savingContact ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                  <span className="hidden sm:inline">{savingContact ? 'Salvando...' : 'Incluir'}</span>
-                </button>
-              </div>
+              {!isReadOnly && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newContactName}
+                    onChange={(e) => setNewContactName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Nome do contato"
+                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50"
+                  />
+                  <input
+                    type="text"
+                    value={newContactPhone}
+                    onChange={(e) => {
+                      setNewContactPhone(formatPhone(e.target.value));
+                      if (phoneError) setPhoneError('');
+                    }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
+                    className="w-36 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddContact}
+                    disabled={!newContactName.trim() || !newContactPhone.trim() || savingContact}
+                    className="px-3 py-2 bg-zinc-800 text-zinc-100 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  >
+                    {savingContact ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                    <span className="hidden sm:inline">{savingContact ? 'Salvando...' : 'Incluir'}</span>
+                  </button>
+                </div>
+              )}
               {phoneError && (
                 <p className="text-sm text-red-400 mt-1.5">{phoneError}</p>
               )}
@@ -286,30 +292,34 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                       <div className="flex items-center gap-3">
                         <label className="flex items-center gap-1.5 cursor-pointer">
                           <input
+                            disabled={isReadOnly}
                             type="checkbox"
                             checked={!!contact.called}
                             onChange={() => toggleContactField(contact.id, 'called')}
-                            className="w-4 h-4 rounded border-zinc-700 text-blue-500 focus:ring-blue-500/50 bg-zinc-950"
+                            className="w-4 h-4 rounded border-zinc-700 text-blue-500 focus:ring-blue-500/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <span className="text-xs text-zinc-400">Chamou?</span>
                         </label>
                         <label className="flex items-center gap-1.5 cursor-pointer">
                           <input
+                            disabled={isReadOnly}
                             type="checkbox"
                             checked={!!contact.subscriptionClosed}
                             onChange={() => toggleContactField(contact.id, 'subscriptionClosed')}
-                            className="w-4 h-4 rounded border-zinc-700 text-red-600 focus:ring-red-600/50 bg-zinc-950"
+                            className="w-4 h-4 rounded border-zinc-700 text-red-600 focus:ring-red-600/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <span className="text-xs text-zinc-400">Assinou?</span>
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveContact(contact.id)}
-                          className="text-zinc-500 hover:text-red-400 p-1 transition-colors ml-1"
-                          title="Remover contato"
-                        >
-                          <X size={16} />
-                        </button>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveContact(contact.id)}
+                            className="text-zinc-500 hover:text-red-400 p-1 transition-colors ml-1"
+                            title="Remover contato"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -325,15 +335,17 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
             onClick={onClose}
             className="px-5 py-2.5 rounded-lg text-sm font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
           >
-            Cancelar
+            {isReadOnly ? 'Fechar' : 'Cancelar'}
           </button>
-          <button
-            type="submit"
-            form="record-form"
-            className="px-5 py-2.5 rounded-lg text-sm font-medium bg-brand text-white hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
-          >
-            Salvar Registro
-          </button>
+          {!isReadOnly && (
+            <button
+              type="submit"
+              form="record-form"
+              className="px-5 py-2.5 rounded-lg text-sm font-medium bg-brand text-white hover:bg-brand-light transition-colors shadow-lg shadow-brand/20"
+            >
+              Salvar Registro
+            </button>
+          )}
         </div>
       </div>
     </div>

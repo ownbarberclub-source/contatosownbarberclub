@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw, Copy, Check } from 'lucide-react';
+import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw, Copy, Check, Flag, X } from 'lucide-react';
 import Logo from './assets/logo.png';
-import { ReferralRecord, ContactPerson, User, Unit, Barber } from './types';
+import { ReferralRecord, ContactPerson, User, Unit, Barber, Campaign } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
 import { RecordModal } from './components/RecordModal';
 import { BarbersTab } from './components/BarbersTab';
@@ -28,6 +28,13 @@ export default function App() {
   const [editingRecord, setEditingRecord] = useState<ReferralRecord | null>(null);
   const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Estados de Campanha
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('all');
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+  const [newCampaignName, setNewCampaignName] = useState('');
 
   // ── Hub SSO Authentication ───────────────────────────────────
   useEffect(() => {
@@ -130,14 +137,26 @@ export default function App() {
 
     const { data: barbersData } = await supabase.from('previa_barbers').select('*').eq('is_hidden_crm', false).eq('is_active', true);
     if (barbersData) setBarbers(barbersData);
+
+    // Carregar campanhas
+    const { data: campaignsData } = await supabase
+      .from('campaigns')
+      .order('created_at', { ascending: false });
+    if (campaignsData) {
+      setCampaigns(campaignsData);
+      const active = campaignsData.find(c => c.status === 'active');
+      setActiveCampaign(active || null);
+      if (active && selectedCampaignId === 'all') {
+        setSelectedCampaignId(active.id);
+      }
+    }
   };
 
   // Realtime Sync Subscription - Reconfiguração Total
   useEffect(() => {
-    // Escuta global de mudanças - Independente de currentUser para teste de sinal
     console.log("Monitorando banco de dados em tempo real...");
 
-    const channel = supabase.channel('global-sync-v2')
+    const channel = supabase.channel('global-sync-v3')
       .on(
         'postgres_changes', 
         { 
@@ -146,24 +165,32 @@ export default function App() {
           table: 'referral_records' 
         }, 
         (payload) => {
-          console.log("!!! MUDANÇA DETECTADA NO BANCO !!!", payload);
+          console.log("!!! MUDANÇA DETECTADA NO BANCO (referral_records) !!!", payload);
           setRecords(prevRecords => {
             if (payload.eventType === 'INSERT') {
-              // Evita duplicação caso o registro já tenha sido adicionado localmente na mesma sessão
               if (prevRecords.some(r => r.id === payload.new.id)) return prevRecords;
-              // A nova indicação vem para o topo
               return [payload.new as ReferralRecord, ...prevRecords];
             }
             if (payload.eventType === 'UPDATE') {
-              // Atualiza o registro específico que foi modificado por outra pessoa
               return prevRecords.map(r => r.id === payload.new.id ? (payload.new as ReferralRecord) : r);
             }
             if (payload.eventType === 'DELETE') {
-              // Remove o registro deletado
               return prevRecords.filter(r => r.id !== payload.old.id);
             }
             return prevRecords;
           });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'campaigns'
+        },
+        () => {
+          console.log("!!! MUDANÇA DETECTADA NO BANCO (campaigns) !!!");
+          loadAppData();
         }
       )
       .subscribe((status) => {
@@ -174,13 +201,71 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedCampaignId]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
     setHubBlocked(true);
     setActiveTab('leads');
+  };
+
+  const handleStartCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCampaignName.trim()) return;
+
+    try {
+      const { error: updateErr } = await supabase
+        .from('campaigns')
+        .update({ status: 'ended' })
+        .eq('status', 'active');
+      if (updateErr) throw updateErr;
+
+      const newCampaign = {
+        id: crypto.randomUUID(),
+        name: newCampaignName.trim(),
+        status: 'active',
+        created_at: new Date().toISOString()
+      };
+      const { error: insertErr } = await supabase
+        .from('campaigns')
+        .insert([newCampaign]);
+      if (insertErr) throw insertErr;
+
+      setNewCampaignName('');
+      setIsCampaignModalOpen(false);
+      alert('Nova campanha iniciada com sucesso!');
+      loadAppData();
+    } catch (err) {
+      console.error('Erro ao iniciar nova campanha:', err);
+      alert('Falha ao iniciar nova campanha no servidor.');
+    }
+  };
+
+  const handleEndCampaign = async (campaignId: string) => {
+    if (!window.confirm('Tem certeza que deseja encerrar esta campanha? Todos os contatos dela ficarão em modo leitura.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ status: 'ended' })
+        .eq('id', campaignId);
+      if (error) throw error;
+
+      alert('Campanha encerrada com sucesso!');
+      loadAppData();
+    } catch (err) {
+      console.error('Erro ao encerrar campanha:', err);
+      alert('Falha ao encerrar campanha.');
+    }
+  };
+
+  const isRecordReadOnly = (record: ReferralRecord | null) => {
+    if (!record || !record.campaign_id) return false;
+    const cmp = campaigns.find(c => c.id === record.campaign_id);
+    return cmp ? cmp.status === 'ended' : false;
   };
 
   const handleAddUnit = async (name: string) => {
@@ -220,6 +305,10 @@ export default function App() {
 
   const handleSaveRecord = async (recordData: Omit<ReferralRecord, 'id' | 'createdAt'>) => {
     if (editingRecord) {
+      if (isRecordReadOnly(editingRecord)) {
+        alert("Este lote pertence a uma campanha encerrada e não pode ser editado.");
+        return;
+      }
       try {
         // ── Merge seguro para ambientes multiusuário ──────────────────
         // 1. Busca a versão ATUAL do registro no banco antes de salvar
@@ -284,11 +373,16 @@ export default function App() {
         loadAppData();
       }
     } else {
+      if (!activeCampaign) {
+        alert("Não há nenhuma campanha ativa. Crie uma campanha antes de cadastrar novos leads.");
+        return;
+      }
       const newRecord: ReferralRecord = {
         ...recordData,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
         createdByName: currentUser.name,
+        campaign_id: activeCampaign.id,
       };
       setRecords([newRecord, ...records]);
       try {
@@ -310,6 +404,12 @@ export default function App() {
   };
 
   const handleUpdateBatchBarber = async (batchId: string, newBarberId: string) => {
+    const record = records.find(r => r.id === batchId);
+    if (record && isRecordReadOnly(record)) {
+      alert("Este lote pertence a uma campanha encerrada e não pode ser alterado.");
+      return;
+    }
+
     const selectedBarber = barbers.find(b => b.id === newBarberId);
     if (!selectedBarber) return;
 
@@ -336,11 +436,17 @@ export default function App() {
   };
 
   const updateContactData = async (recordId: string, contactId: string, updates: Partial<ContactPerson>) => {
+    const record = records.find(r => r.id === recordId);
+    if (record && isRecordReadOnly(record)) {
+      alert("Este lote pertence a uma campanha encerrada e não pode ser alterado.");
+      return;
+    }
+
     let updatedRecordToSave: ReferralRecord | null = null;
     
-    setRecords(records.map(record => {
-      if (record.id === recordId) {
-        const newContacts = record.contacts.map(contact => {
+    setRecords(records.map(rec => {
+      if (rec.id === recordId) {
+        const newContacts = rec.contacts.map(contact => {
           if (contact.id === contactId) {
             const updatedContact = { ...contact, ...updates };
             
@@ -369,11 +475,11 @@ export default function App() {
           return contact;
         });
         
-        const updated = { ...record, contacts: newContacts };
+        const updated = { ...rec, contacts: newContacts };
         updatedRecordToSave = updated;
         return updated;
       }
-      return record;
+      return rec;
     }));
 
     if (updatedRecordToSave) {
@@ -395,6 +501,12 @@ export default function App() {
    * garantindo que o contato persista mesmo que o realtime recarregue os dados.
    */
   const handleAddContactImmediate = async (recordId: string, newContact: ContactPerson) => {
+    const record = records.find(r => r.id === recordId);
+    if (record && isRecordReadOnly(record)) {
+      alert("Este lote pertence a uma campanha encerrada e não pode ser alterado.");
+      return;
+    }
+
     // Busca contatos atuais do banco para fazer merge sem sobrescrever
     const { data: freshData, error: fetchErr } = await supabase
       .from('referral_records')
@@ -425,6 +537,12 @@ export default function App() {
   };
 
   const handleDelete = async (id: string) => {
+    const record = records.find(r => r.id === id);
+    if (record && isRecordReadOnly(record)) {
+      alert("Este lote pertence a uma campanha encerrada e não pode ser excluído.");
+      return;
+    }
+
     if (window.confirm('Tem certeza que deseja excluir este lote de indicações?')) {
       setRecords(records.filter(r => r.id !== id));
       await supabase.from('referral_records').delete().eq('id', id);
@@ -432,6 +550,13 @@ export default function App() {
   };
 
   const handleDeleteClient = async (cpf: string, name: string) => {
+    const clientBatches = records.filter(r => cleanCPF(r.clientCpf) === cleanCPF(cpf));
+    const hasReadOnlyBatch = clientBatches.some(b => isRecordReadOnly(b));
+    if (hasReadOnlyBatch) {
+      alert(`O indicador "${name}" possui indicações pertencentes a uma campanha encerrada e não pode ser excluído.`);
+      return;
+    }
+
     if (window.confirm(`AVISO: Deseja excluir o indicador "${name}" e TODAS as indicações dele? Esta ação não pode ser desfeita.`)) {
       // Filtra localmente
       setRecords(records.filter(r => cleanCPF(r.clientCpf) !== cleanCPF(cpf)));
@@ -455,16 +580,29 @@ export default function App() {
   };
 
   const openNewModal = () => {
+    if (!activeCampaign) {
+      alert("Não há nenhuma campanha ativa. Crie uma campanha antes de cadastrar novos leads.");
+      return;
+    }
     setEditingRecord(null);
     setPreFilledClient(null);
     setIsModalOpen(true);
   };
 
   const openNewModalWithClient = (cpf: string, name: string) => {
+    if (!activeCampaign) {
+      alert("Não há nenhuma campanha ativa. Crie uma campanha antes de cadastrar novos leads.");
+      return;
+    }
     setEditingRecord(null);
     setPreFilledClient({ cpf, name });
     setIsModalOpen(true);
   };
+
+  const campaignFilteredRecords = useMemo(() => {
+    if (selectedCampaignId === 'all') return records;
+    return records.filter(r => r.campaign_id === selectedCampaignId);
+  }, [records, selectedCampaignId]);
 
   const clientGroups = useMemo(() => {
     const groups: Record<string, {
@@ -473,7 +611,7 @@ export default function App() {
       batches: ReferralRecord[];
     }> = {};
 
-    records.forEach(record => {
+    campaignFilteredRecords.forEach(record => {
       const cpf = cleanCPF(record.clientCpf);
       if (!groups[cpf]) {
         groups[cpf] = {
@@ -486,7 +624,7 @@ export default function App() {
     });
 
     return Object.values(groups);
-  }, [records]);
+  }, [campaignFilteredRecords]);
 
   const filteredGroups = useMemo(() => {
     if (!searchQuery) return clientGroups;
@@ -504,7 +642,7 @@ export default function App() {
   }, [clientGroups, searchQuery]);
 
   const stats = useMemo(() => {
-    const allContacts = records.flatMap(r => r.contacts || []);
+    const allContacts = campaignFilteredRecords.flatMap(r => r.contacts || []);
     const calledTotal = allContacts.filter(c => c.status && c.status !== 'pending').length;
     const converted = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
     const noResponse = allContacts.filter(c => c.status === 'no_response').length;
@@ -516,14 +654,14 @@ export default function App() {
     ).length;
 
     return {
-      totalClients: new Set(records.map(r => cleanCPF(r.clientCpf))).size,
+      totalClients: new Set(campaignFilteredRecords.map(r => cleanCPF(r.clientCpf))).size,
       totalLeads: allContacts.length,
       leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
       calledToday,
       conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
       noResponseRate: calledTotal > 0 ? Math.round((noResponse / calledTotal) * 100) : 0,
     };
-  }, [records, selectedDate]);
+  }, [campaignFilteredRecords, selectedDate]);
 
   if (hubLoading) {
     return (
@@ -658,20 +796,51 @@ export default function App() {
             onRemoveBarber={handleRemoveBarber}
           />
         ) : activeTab === 'dashboard' && currentUser.isAdmin ? (
-          <DashboardTab records={records} />
+          <DashboardTab records={campaignFilteredRecords} />
         ) : (
           <>
             {/* Stats & Filter Row */}
             <div className="flex flex-col gap-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
-                  <CalendarDays className="w-5 h-5 text-brand" />
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="bg-transparent border-none text-zinc-100 focus:outline-none text-sm font-medium cursor-pointer"
-                  />
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
+                    <CalendarDays className="w-5 h-5 text-brand" />
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="bg-transparent border-none text-zinc-100 focus:outline-none text-sm font-medium cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Seletor de Campanha */}
+                  <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
+                    <span className="text-xs text-zinc-500 font-medium ml-1">Campanha:</span>
+                    <select
+                      value={selectedCampaignId}
+                      onChange={(e) => setSelectedCampaignId(e.target.value)}
+                      className="bg-transparent border-none text-zinc-200 focus:outline-none text-sm font-semibold cursor-pointer py-1 pr-6"
+                    >
+                      <option value="all" className="bg-zinc-900 text-zinc-100">Todas as Campanhas</option>
+                      {campaigns.map(c => (
+                        <option key={c.id} value={c.id} className="bg-zinc-900 text-zinc-100">
+                          {c.name} {c.status === 'active' ? '(Ativa)' : '(Encerrada)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Botão administrativo para gerenciar campanhas */}
+                  {currentUser.isAdmin && (
+                    <button
+                      onClick={() => setIsCampaignModalOpen(true)}
+                      className="flex items-center gap-2 bg-zinc-900 text-zinc-300 hover:text-white px-4 py-2.5 rounded-xl text-sm font-medium border border-zinc-800 hover:bg-zinc-800 transition-all"
+                      title="Gerenciar Campanhas"
+                    >
+                      <Flag className="w-4 h-4 text-brand" />
+                      <span className="hidden sm:inline">Gerenciar Campanhas</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex-1 w-full md:w-auto flex flex-col md:flex-row gap-3 justify-end">
@@ -851,9 +1020,10 @@ export default function App() {
                              </td>
                              <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">
                                <select
+                                 disabled={isRecordReadOnly(batch)}
                                  value={batch.barberId || ''}
                                  onChange={(e) => handleUpdateBatchBarber(batch.id, e.target.value)}
-                                 className="bg-transparent border-none text-zinc-400 hover:text-zinc-100 focus:text-zinc-100 focus:outline-none cursor-pointer p-0 w-full"
+                                 className="bg-transparent border-none text-zinc-400 hover:text-zinc-100 focus:text-zinc-100 focus:outline-none cursor-pointer p-0 w-full disabled:cursor-not-allowed disabled:text-zinc-600"
                                >
                                  <option value="" disabled className="bg-zinc-900 text-zinc-500">Selecione...</option>
                                  {barbers.map(barber => (
@@ -865,9 +1035,10 @@ export default function App() {
                              </td>
                             <td className="px-6 py-3 whitespace-nowrap text-center">
                               <select
+                                disabled={isRecordReadOnly(batch)}
                                 value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
                                 onChange={(e) => updateContactData(batch.id, contact.id, { status: e.target.value as any })}
-                                className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors ${
+                                className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                                   contact.status === 'converted' || contact.subscriptionClosed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
                                   contact.status === 'no_response' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
                                   contact.status === 'declined' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
@@ -890,22 +1061,23 @@ export default function App() {
                             </td>
                             <td className="px-6 py-3">
                               <input 
+                                disabled={isRecordReadOnly(batch)}
                                 type="text"
                                 placeholder="Adicionar nota..."
                                 value={contact.notes || ''}
                                 onChange={(e) => updateContactData(batch.id, contact.id, { notes: e.target.value })}
-                                className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700"
+                                className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700 disabled:text-zinc-600"
                               />
                             </td>
                             <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                               <button
                                 onClick={() => openEditModal(batch)}
                                 className="text-zinc-500 hover:text-brand transition-colors p-1"
-                                title="Editar Lote"
+                                title={isRecordReadOnly(batch) ? "Visualizar Lote (Sem Edição)" : "Editar Lote"}
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
-                              {(currentUser.isAdmin || currentUser.permissions?.includes('delete_records')) && (
+                              {(currentUser.isAdmin || currentUser.permissions?.includes('delete_records')) && !isRecordReadOnly(batch) && (
                                 <button
                                   onClick={() => handleDelete(batch.id)}
                                   className="text-zinc-500 hover:text-red-500 transition-colors p-1 ml-2"
@@ -942,10 +1114,94 @@ export default function App() {
         onSave={handleSaveRecord}
         onAddContact={handleAddContactImmediate}
         initialData={editingRecord}
+        isReadOnly={isRecordReadOnly(editingRecord)}
         records={records}
         barbers={barbers}
         preFilledClient={preFilledClient}
       />
+
+      {/* Campaign Manager Modal */}
+      {isCampaignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-zinc-100 flex items-center gap-2">
+                <Flag className="w-5 h-5 text-brand" />
+                Gerenciar Campanhas
+              </h2>
+              <button
+                onClick={() => setIsCampaignModalOpen(false)}
+                className="text-zinc-400 hover:text-zinc-100 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Iniciar nova campanha */}
+              <form onSubmit={handleStartCampaign} className="space-y-4">
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Iniciar Nova Campanha</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={newCampaignName}
+                    onChange={(e) => setNewCampaignName(e.target.value)}
+                    placeholder="Nome da nova campanha..."
+                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-brand-light transition-colors"
+                  >
+                    Iniciar
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Nota: Iniciar uma nova campanha irá encerrar automaticamente qualquer campanha atualmente ativa.
+                </p>
+              </form>
+
+              <hr className="border-zinc-800" />
+
+              {/* Lista de campanhas existentes */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Campanhas Recentes</h3>
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                  {campaigns.length === 0 ? (
+                    <p className="text-xs text-zinc-500 text-center py-4">Nenhuma campanha cadastrada.</p>
+                  ) : (
+                    campaigns.map(c => (
+                      <div key={c.id} className="flex items-center justify-between p-3 bg-zinc-950 rounded-lg border border-zinc-800 text-sm">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-semibold text-zinc-200">{c.name}</span>
+                          <span className="text-xs text-zinc-500">
+                            {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <div>
+                          {c.status === 'active' ? (
+                            <button
+                              onClick={() => handleEndCampaign(c.id)}
+                              className="px-2.5 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/25 border border-red-500/20 rounded-md text-xs font-semibold transition-colors"
+                            >
+                              Encerrar
+                            </button>
+                          ) : (
+                            <span className="text-zinc-500 text-xs font-semibold uppercase bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-md">
+                              Encerrada
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

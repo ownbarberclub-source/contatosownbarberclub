@@ -9,6 +9,13 @@ export interface ContactPerson {
   notes?: string;
 }
 
+export interface Campaign {
+  id: string;
+  name: string;
+  status: 'active' | 'ended';
+  created_at: string;
+}
+
 export interface ReferralRecord {
   id: string;
   clientName: string;
@@ -19,6 +26,7 @@ export interface ReferralRecord {
   contacts: ContactPerson[];
   createdAt: string;
   createdByName?: string;
+  campaign_id?: string;
 }
 
 export interface User {
