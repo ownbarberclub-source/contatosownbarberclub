@@ -14,9 +14,10 @@ interface RecordModalProps {
   records: ReferralRecord[];
   barbers: Barber[];
   preFilledClient?: { cpf: string; name: string } | null;
+  activeCampaignId?: string;
 }
 
-export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, isReadOnly = false, records, barbers, preFilledClient }: RecordModalProps) {
+export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, isReadOnly = false, records, barbers, preFilledClient, activeCampaignId }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
   const [barberId, setBarberId] = useState('');
@@ -92,12 +93,17 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
 
     // Check global records (excluding the current record being edited)
     const otherRecords = initialData ? records.filter(r => r.id !== initialData.id) : records;
-    const isDuplicateInGlobal = otherRecords.some(r =>
+    
+    // Filtra para verificar duplicados apenas dentro da mesma campanha
+    const currentCampaignId = initialData?.campaign_id || activeCampaignId;
+    const sameCampaignRecords = otherRecords.filter(r => r.campaign_id === currentCampaignId);
+    
+    const isDuplicateInGlobal = sameCampaignRecords.some(r =>
       r.contacts?.some(c => cleanPhone(c.phone) === cleanedNewPhone)
     );
 
     if (isDuplicateInCurrent || isDuplicateInGlobal) {
-      setPhoneError('Este número de telefone já está cadastrado como lead.');
+      setPhoneError('Este número de telefone já está cadastrado como lead nesta campanha.');
       return;
     }
 

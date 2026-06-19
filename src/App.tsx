@@ -252,6 +252,7 @@ export default function App() {
       setNewCampaignName('');
       setIsCampaignModalOpen(false);
       alert('Nova campanha iniciada com sucesso!');
+      setSelectedCampaignId(newCampaign.id);
       loadAppData();
     } catch (err) {
       console.error('Erro ao iniciar nova campanha:', err);
@@ -1191,6 +1192,7 @@ export default function App() {
         records={records}
         barbers={barbers}
         preFilledClient={preFilledClient}
+        activeCampaignId={activeCampaign?.id}
       />
 
       {/* Campaign Manager Modal */}
