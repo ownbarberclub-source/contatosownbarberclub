@@ -7,7 +7,7 @@ import { RecordModal } from './components/RecordModal';
 import { BarbersTab } from './components/BarbersTab';
 import { UsersTab } from './components/UsersTab';
 import { DashboardTab } from './components/DashboardTab';
-import { exportToExcel, exportToPDF } from './exportUtils';
+import { exportToExcel, exportToPDF, exportGroupToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
 
 export default function App() {
@@ -1034,6 +1034,16 @@ export default function App() {
                     <p className="text-sm text-zinc-400 mt-1">CPF: {group.clientCpf}</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
+                      <button
+                        onClick={() => exportGroupToPDF(group.clientName, group.clientCpf, group.batches)}
+                        className="flex items-center gap-2 bg-zinc-800 text-zinc-300 hover:text-red-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700 cursor-pointer"
+                        title="Exportar Indicador para PDF"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span className="hidden sm:inline">Exportar PDF</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => openNewModalWithClient(group.clientCpf, group.clientName)}
                       className="flex items-center gap-2 bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
