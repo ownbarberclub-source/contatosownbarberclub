@@ -349,26 +349,26 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                       </div>
                       
                       {contact.subscriptionClosed && (
-                        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-zinc-800/50">
+                        <div className="flex flex-col sm:flex-row gap-3 pt-3 mt-1.5 border-t border-zinc-800/50 bg-zinc-950/30 p-2.5 rounded-lg border border-zinc-800/40">
                           <div className="flex-1">
-                            <label className="block text-[10px] uppercase font-mono text-zinc-500 mb-1">Data Ativação</label>
+                            <label className="block text-[9px] uppercase font-semibold tracking-wider text-zinc-500 mb-1 font-mono">Data Ativação</label>
                             <input
                               disabled={isReadOnly}
                               type="date"
                               value={contact.activationDate || ''}
                               onChange={(e) => updateContactField(contact.id, 'activationDate', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-brand"
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand font-mono [&::-webkit-calendar-picker-indicator]:invert"
                             />
                           </div>
                           <div className="flex-1">
-                            <label className="block text-[10px] uppercase font-mono text-zinc-500 mb-1">Número do Cartão</label>
+                            <label className="block text-[9px] uppercase font-semibold tracking-wider text-zinc-500 mb-1 font-mono">Número do Cartão</label>
                             <input
                               disabled={isReadOnly}
                               type="text"
                               placeholder="Ex: 1234"
                               value={contact.cardNumber || ''}
                               onChange={(e) => updateContactField(contact.id, 'cardNumber', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-brand"
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand font-mono placeholder-zinc-700"
                             />
                           </div>
                         </div>
