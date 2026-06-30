@@ -1039,7 +1039,16 @@ export default function App() {
                     <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-3">
                       {group.clientName}
                     </h3>
-                    <p className="text-sm text-zinc-400 mt-1">CPF: {group.clientCpf}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 text-xs text-zinc-400">
+                      <span className="font-mono">CPF: {group.clientCpf}</span>
+                      <span className="hidden sm:inline text-zinc-700">•</span>
+                      <span className="flex items-center gap-1 bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-md border border-blue-500/20 font-medium">
+                        Leads Inseridos: {group.batches.reduce((acc, b) => acc + (b.contacts?.length || 0), 0)}
+                      </span>
+                      <span className="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-500/20 font-medium">
+                        Assinaturas Fechadas: {group.batches.reduce((acc, b) => acc + (b.contacts?.filter(c => c.status === 'converted' || c.subscriptionClosed).length || 0), 0)}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
