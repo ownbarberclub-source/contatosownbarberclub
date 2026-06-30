@@ -280,6 +280,35 @@ export default function App() {
     }
   };
 
+  const handleDeleteCampaign = async (campaignId: string, campaignName: string) => {
+    if (!window.confirm(`Tem certeza que deseja EXCLUIR a campanha "${campaignName}"? TODOS os contatos e indicações vinculados a ela serão deletados permanentemente!`)) {
+      return;
+    }
+
+    try {
+      const { error: recordsErr } = await supabase
+        .from('referral_records')
+        .delete()
+        .eq('campaign_id', campaignId);
+      if (recordsErr) throw recordsErr;
+
+      const { error: campaignErr } = await supabase
+        .from('campaigns')
+        .delete()
+        .eq('id', campaignId);
+      if (campaignErr) throw campaignErr;
+
+      alert('Campanha e seus contatos excluídos com sucesso!');
+      if (selectedCampaignId === campaignId) {
+        setSelectedCampaignId('all');
+      }
+      loadAppData();
+    } catch (err) {
+      console.error('Erro ao excluir campanha:', err);
+      alert('Falha ao excluir campanha.');
+    }
+  };
+
   const isRecordReadOnly = (record: ReferralRecord | null) => {
     if (!record || !record.campaign_id) return false;
     const cmp = campaigns.find(c => c.id === record.campaign_id);
@@ -940,16 +969,16 @@ export default function App() {
                     {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
                       <>
                         <button
-                          onClick={() => exportToPDF(records)}
-                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
+                          onClick={() => exportToPDF(campaignFilteredRecords)}
+                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
                           title="Exportar para PDF"
                         >
                           <FileText className="w-4 h-4 text-red-400" />
                           <span className="hidden lg:inline">PDF</span>
                         </button>
                         <button
-                          onClick={() => exportToExcel(records)}
-                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700"
+                          onClick={() => exportToExcel(campaignFilteredRecords)}
+                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
                           title="Exportar para Excel"
                         >
                           <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
@@ -1317,14 +1346,25 @@ export default function App() {
                           {c.status === 'active' ? (
                             <button
                               onClick={() => handleEndCampaign(c.id)}
-                              className="px-2.5 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/25 border border-red-500/20 rounded-md text-xs font-semibold transition-colors"
+                              className="px-2.5 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/25 border border-red-500/20 rounded-md text-xs font-semibold transition-colors cursor-pointer"
                             >
                               Encerrar
                             </button>
                           ) : (
-                            <span className="text-zinc-500 text-xs font-semibold uppercase bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-md">
-                              Encerrada
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-zinc-500 text-xs font-semibold uppercase bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-md">
+                                Encerrada
+                              </span>
+                              {(currentUser?.isAdmin || currentUser?.role === 'admin') && (
+                                <button
+                                  onClick={() => handleDeleteCampaign(c.id, c.name)}
+                                  className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all cursor-pointer"
+                                  title="Excluir Campanha e Contatos"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
