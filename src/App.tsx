@@ -718,6 +718,7 @@ export default function App() {
     return {
       totalClients: new Set(campaignFilteredRecords.map(r => cleanCPF(r.clientCpf))).size,
       totalLeads: allContacts.length,
+      closedSubscriptions: converted,
       leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
       calledToday,
       conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
@@ -970,7 +971,7 @@ export default function App() {
                 </div>
               </div>
 
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-zinc-400">
                 <Users className="w-4 h-4" />
@@ -981,9 +982,16 @@ export default function App() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-zinc-400">
                 <UserPlus className="w-4 h-4" />
-                <p className="text-xs font-medium uppercase tracking-wider">Total Leads</p>
+                <p className="text-xs font-medium uppercase tracking-wider">Leads Inseridos</p>
               </div>
               <p className="text-2xl font-bold text-zinc-100">{stats.totalLeads}</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-brand">
+                <CheckCircle2 className="w-4 h-4 text-red-500" />
+                <p className="text-xs font-medium uppercase tracking-wider">Assinaturas Fechadas</p>
+              </div>
+              <p className="text-2xl font-bold text-brand">{stats.closedSubscriptions}</p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-blue-400">
