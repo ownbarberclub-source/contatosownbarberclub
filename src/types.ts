@@ -9,6 +9,7 @@ export interface ContactPerson {
   notes?: string;
   activationDate?: string;
   cardNumber?: string;
+  fidelimaxStatus?: 'pending' | 'launched' | 'not_applicable';
 }
 
 export interface Campaign {

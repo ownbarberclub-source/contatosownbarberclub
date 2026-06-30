@@ -1120,6 +1120,7 @@ export default function App() {
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Telefone</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Barbeiro</th>
                         <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status ROI</th>
+                        <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status Fidelimax</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Notas / Observações</th>
                         <th className="px-6 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Ações</th>
                       </tr>
@@ -1221,6 +1222,22 @@ export default function App() {
                                   )}
                                </div>
                              </td>
+                             <td className="px-6 py-3 whitespace-nowrap text-center">
+                               <select
+                                 disabled={isRecordReadOnly(batch)}
+                                 value={contact.fidelimaxStatus || 'pending'}
+                                 onChange={(e) => updateContactData(batch.id, contact.id, { fidelimaxStatus: e.target.value as any })}
+                                 className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
+                                   contact.fidelimaxStatus === 'launched' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                                   contact.fidelimaxStatus === 'not_applicable' ? 'text-zinc-500 border-zinc-800/50 bg-zinc-950' :
+                                   'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'
+                                 }`}
+                               >
+                                 <option value="pending">Pendente</option>
+                                 <option value="launched">Lançado ✅</option>
+                                 <option value="not_applicable">Não se aplica 🚫</option>
+                               </select>
+                             </td>
                             <td className="px-6 py-3">
                               <input 
                                 disabled={isRecordReadOnly(batch)}
@@ -1254,7 +1271,7 @@ export default function App() {
                       )}
                       {group.batches.every(b => !b.contacts || b.contacts.length === 0) && (
                         <tr>
-                          <td colSpan={5} className="px-6 py-8 text-center text-sm text-zinc-500">
+                          <td colSpan={7} className="px-6 py-8 text-center text-sm text-zinc-500">
                             Nenhum lead registrado para este cliente.
                           </td>
                         </tr>

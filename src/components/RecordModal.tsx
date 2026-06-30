@@ -163,7 +163,7 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
     }));
   };
 
-  const updateContactField = (id: string, field: 'activationDate' | 'cardNumber', value: string) => {
+  const updateContactField = (id: string, field: keyof ContactPerson, value: any) => {
     setContacts(contacts.map(c => {
       if (c.id === id) {
         return { ...c, [field]: value };
@@ -335,6 +335,19 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                             />
                             <span className="text-xs text-zinc-400">Assinou?</span>
                           </label>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-zinc-500 font-medium font-mono">Fidelimax:</span>
+                            <select
+                              disabled={isReadOnly}
+                              value={contact.fidelimaxStatus || 'pending'}
+                              onChange={(e) => updateContactField(contact.id, 'fidelimaxStatus', e.target.value)}
+                              className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-brand cursor-pointer"
+                            >
+                              <option value="pending">Pendente</option>
+                              <option value="launched">Lançado ✅</option>
+                              <option value="not_applicable">N/A 🚫</option>
+                            </select>
+                          </div>
                           {!isReadOnly && (
                             <button
                               type="button"
