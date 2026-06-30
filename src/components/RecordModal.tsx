@@ -148,7 +148,25 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
         if (field === 'called') {
           updates.calledAt = newValue ? new Date().toISOString() : undefined;
         }
+        if (field === 'subscriptionClosed') {
+          if (newValue) {
+            updates.status = 'converted';
+          } else {
+            updates.status = 'pending';
+            updates.activationDate = undefined;
+            updates.cardNumber = undefined;
+          }
+        }
         return { ...c, ...updates };
+      }
+      return c;
+    }));
+  };
+
+  const updateContactField = (id: string, field: 'activationDate' | 'cardNumber', value: string) => {
+    setContacts(contacts.map(c => {
+      if (c.id === id) {
+        return { ...c, [field]: value };
       }
       return c;
     }));
@@ -290,43 +308,71 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
               {contacts.length > 0 && (
                 <div className="bg-zinc-950/50 border border-zinc-800/50 rounded-lg p-2 space-y-2 max-h-40 overflow-y-auto">
                   {contacts.map(contact => (
-                    <div key={contact.id} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-zinc-200">{contact.name}</span>
-                        <span className="text-xs text-zinc-500">{contact.phone}</span>
+                    <div key={contact.id} className="flex flex-col bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-zinc-200">{contact.name}</span>
+                          <span className="text-xs text-zinc-500">{contact.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              disabled={isReadOnly}
+                              type="checkbox"
+                              checked={!!contact.called}
+                              onChange={() => toggleContactField(contact.id, 'called')}
+                              className="w-4 h-4 rounded border-zinc-700 text-blue-500 focus:ring-blue-500/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <span className="text-xs text-zinc-400">Chamou?</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              disabled={isReadOnly}
+                              type="checkbox"
+                              checked={!!contact.subscriptionClosed}
+                              onChange={() => toggleContactField(contact.id, 'subscriptionClosed')}
+                              className="w-4 h-4 rounded border-zinc-700 text-red-600 focus:ring-red-600/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <span className="text-xs text-zinc-400">Assinou?</span>
+                          </label>
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveContact(contact.id)}
+                              className="text-zinc-500 hover:text-red-400 p-1 transition-colors ml-1 cursor-pointer"
+                              title="Remover contato"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            disabled={isReadOnly}
-                            type="checkbox"
-                            checked={!!contact.called}
-                            onChange={() => toggleContactField(contact.id, 'called')}
-                            className="w-4 h-4 rounded border-zinc-700 text-blue-500 focus:ring-blue-500/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                          <span className="text-xs text-zinc-400">Chamou?</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            disabled={isReadOnly}
-                            type="checkbox"
-                            checked={!!contact.subscriptionClosed}
-                            onChange={() => toggleContactField(contact.id, 'subscriptionClosed')}
-                            className="w-4 h-4 rounded border-zinc-700 text-red-600 focus:ring-red-600/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                          <span className="text-xs text-zinc-400">Assinou?</span>
-                        </label>
-                        {!isReadOnly && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveContact(contact.id)}
-                            className="text-zinc-500 hover:text-red-400 p-1 transition-colors ml-1"
-                            title="Remover contato"
-                          >
-                            <X size={16} />
-                          </button>
-                        )}
-                      </div>
+                      
+                      {contact.subscriptionClosed && (
+                        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-zinc-800/50">
+                          <div className="flex-1">
+                            <label className="block text-[10px] uppercase font-mono text-zinc-500 mb-1">Data Ativação</label>
+                            <input
+                              disabled={isReadOnly}
+                              type="date"
+                              value={contact.activationDate || ''}
+                              onChange={(e) => updateContactField(contact.id, 'activationDate', e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-brand"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-[10px] uppercase font-mono text-zinc-500 mb-1">Número do Cartão</label>
+                            <input
+                              disabled={isReadOnly}
+                              type="text"
+                              placeholder="Ex: 1234"
+                              value={contact.cardNumber || ''}
+                              onChange={(e) => updateContactField(contact.id, 'cardNumber', e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-brand"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

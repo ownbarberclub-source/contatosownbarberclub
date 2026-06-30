@@ -7,6 +7,8 @@ export interface ContactPerson {
   calledAt?: string;
   status?: 'pending' | 'contacted' | 'no_response' | 'declined' | 'scheduled' | 'converted' | 'invalid_number' | 'frequent';
   notes?: string;
+  activationDate?: string;
+  cardNumber?: string;
 }
 
 export interface Campaign {
