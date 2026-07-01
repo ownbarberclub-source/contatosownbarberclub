@@ -3,19 +3,44 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ReferralRecord, Seller } from './types';
 
+// Helper to format ROI status in PT-BR
+const formatROIStatus = (status?: string, subscriptionClosed?: boolean, called?: boolean): string => {
+  const cStatus = status || (subscriptionClosed ? 'converted' : called ? 'contacted' : 'pending');
+  switch (cStatus) {
+    case 'converted': return 'Assinou ✅';
+    case 'scheduled': return 'Agendou 📅';
+    case 'frequent': return 'Frequente';
+    case 'invalid_number': return 'Número não existe';
+    case 'declined': return 'Recusou';
+    case 'no_response': return 'Não Respondeu';
+    case 'contacted': return 'Contatado';
+    default: return 'Pendente';
+  }
+};
+
+// Helper to format Fidelimax status in PT-BR
+const formatFidelimaxStatus = (status?: string): string => {
+  const fStatus = status || 'pending';
+  switch (fStatus) {
+    case 'launched': return 'Lançado ✅';
+    case 'not_applicable': return 'Não se aplica 🚫';
+    default: return 'Pendente';
+  }
+};
+
 export const exportToExcel = (records: ReferralRecord[], sellers: Seller[]) => {
   const data = records.flatMap(record => 
     (record.contacts || []).map(contact => {
       const seller = sellers.find(s => s.id === contact.sellerId);
       return {
-        'Cliente': record.clientName,
-        'CPF Cliente': record.clientCpf,
-        'Barbeiro': record.barberName,
-        'Vendedor': seller ? seller.name : 'Sem Vendedor',
+        'Indicador': record.clientName,
+        'CPF Indicador': record.clientCpf,
         'Lead': contact.name,
         'Telefone': contact.phone,
-        'Status': contact.called ? 'Chamado' : 'Pendente',
-        'Assinatura': contact.subscriptionClosed ? 'Fechada' : 'Pendente',
+        'Barbeiro': record.barberName,
+        'Vendedor': seller ? seller.name : 'Sem Vendedor',
+        'Status ROI': formatROIStatus(contact.status, contact.subscriptionClosed, contact.called),
+        'Status Fidelimax': formatFidelimaxStatus(contact.fidelimaxStatus),
         'Data Cadastro': new Date(record.createdAt).toLocaleDateString('pt-BR')
       };
     })
@@ -28,28 +53,41 @@ export const exportToExcel = (records: ReferralRecord[], sellers: Seller[]) => {
 };
 
 export const exportToPDF = (records: ReferralRecord[], sellers: Seller[]) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: 'landscape' }); // Landscape format works better for 8 columns
   
+  // Header Title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(225, 6, 0); // OWN Barber Club Red
+  doc.text("RELATÓRIO GERAL DE LEADS", 14, 15);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 14, 21);
+
   const tableData = records.flatMap(record => 
     (record.contacts || []).map(contact => {
       const seller = sellers.find(s => s.id === contact.sellerId);
       return [
         record.clientName,
-        record.barberName,
-        seller ? seller.name : 'Sem Vendedor',
         contact.name,
         contact.phone,
-        contact.called ? 'Chamado' : 'Pendente',
-        contact.subscriptionClosed ? 'Fechada' : 'Pendente'
+        record.barberName,
+        seller ? seller.name : 'Sem Vendedor',
+        formatROIStatus(contact.status, contact.subscriptionClosed, contact.called),
+        formatFidelimaxStatus(contact.fidelimaxStatus),
+        new Date(record.createdAt).toLocaleDateString('pt-BR')
       ];
     })
   );
 
   autoTable(doc, {
-    head: [['Cliente', 'Barbeiro', 'Vendedor', 'Lead', 'Telefone', 'Status', 'Assinatura']],
+    startY: 26,
+    head: [['Indicador', 'Lead', 'Telefone', 'Barbeiro', 'Vendedor', 'Status ROI', 'Status Fidelimax', 'Data Cadastro']],
     body: tableData,
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [225, 6, 0] }, // OWN Barber Club Red
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    headStyles: { fillColor: [225, 6, 0], textColor: [255, 255, 255], fontStyle: 'bold' },
     theme: 'grid',
   });
 
@@ -57,89 +95,58 @@ export const exportToPDF = (records: ReferralRecord[], sellers: Seller[]) => {
 };
 
 export const exportGroupToPDF = (clientName: string, clientCpf: string, batches: ReferralRecord[], sellers: Seller[]) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: 'landscape' });
 
   // Header Title
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(16);
   doc.setTextColor(225, 6, 0); // OWN Barber Club Red
-  doc.text("RELATÓRIO DE INDICAÇÕES", 14, 20);
+  doc.text("RELATÓRIO DE INDICAÇÕES", 14, 15);
 
   // Subtitle / Info
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
   doc.setFont("helvetica", "normal");
-  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 14, 27);
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 14, 21);
 
   // Divider Line
   doc.setDrawColor(225, 6, 0);
   doc.setLineWidth(0.5);
-  doc.line(14, 32, 196, 32);
+  doc.line(14, 25, 282, 25);
 
   // Client Info Section
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(40, 40, 40);
-  doc.text("Indicador (Lead Mestre):", 14, 42);
-  doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  doc.text(`${clientName} (CPF: ${clientCpf})`, 14, 48);
+  doc.setTextColor(40, 40, 40);
+  doc.text("Indicador (Lead Mestre):", 14, 33);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`${clientName} (CPF: ${clientCpf})`, 14, 38);
 
-  // Table of referred leads
   const tableData = batches.flatMap(batch => 
     (batch.contacts || []).map(contact => {
-      // Format status
-      let statusText = 'Pendente';
-      if (contact.subscriptionClosed) {
-        statusText = 'Assinatura Fechada';
-      } else if (contact.status === 'converted') {
-        statusText = 'Convertido';
-      } else if (contact.status === 'contacted') {
-        statusText = 'Contatado';
-      } else if (contact.status === 'scheduled') {
-        statusText = 'Agendado';
-      } else if (contact.status === 'no_response') {
-        statusText = 'Sem Retorno';
-      } else if (contact.status === 'declined') {
-        statusText = 'Recusado';
-      } else if (contact.status === 'invalid_number') {
-        statusText = 'Número Inválido';
-      } else if (contact.called) {
-        statusText = 'Chamado';
-      }
-
       const seller = sellers.find(s => s.id === contact.sellerId);
-      
       return [
         contact.name,
         contact.phone,
         batch.barberName,
         seller ? seller.name : 'Sem Vendedor',
-        statusText,
-        contact.notes || '-'
+        formatROIStatus(contact.status, contact.subscriptionClosed, contact.called),
+        formatFidelimaxStatus(contact.fidelimaxStatus),
+        new Date(batch.createdAt).toLocaleDateString('pt-BR')
       ];
     })
   );
 
   autoTable(doc, {
-    startY: 55,
-    head: [['Nome do Lead', 'Telefone', 'Barbeiro Responsável', 'Vendedor', 'Status ROI', 'Observações']],
+    startY: 44,
+    head: [['Nome do Lead', 'Telefone', 'Barbeiro Responsável', 'Vendedor', 'Status ROI', 'Status Fidelimax', 'Data Cadastro']],
     body: tableData,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [225, 6, 0], textColor: [255, 255, 255], fontStyle: 'bold' },
     theme: 'grid',
-    columnStyles: {
-      0: { cellWidth: 35 },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 30 },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 25 },
-      5: { cellWidth: 'auto' }
-    }
   });
 
-  // Save the PDF
   const sanitizedClientName = clientName.toLowerCase().replace(/[^a-z0-9]/g, '_');
   doc.save(`leads_${sanitizedClientName}.pdf`);
 };
-
