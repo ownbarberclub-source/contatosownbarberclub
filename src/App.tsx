@@ -595,6 +595,9 @@ export default function App() {
                 updatedContact.called = true;
                 const timeString = new Date().toISOString().split('T')[1] || '00:00:00.000Z';
                 if (!updatedContact.calledAt) updatedContact.calledAt = `${selectedDate}T${timeString}`;
+                if (!updatedContact.activationDate) {
+                  updatedContact.activationDate = new Date().toISOString().split('T')[0];
+                }
               } else if (updates.status === 'pending') {
                 updatedContact.subscriptionClosed = false;
                 updatedContact.called = false;
@@ -1392,54 +1395,30 @@ export default function App() {
                                </select>
                              </td>
                              <td className="px-6 py-3 whitespace-nowrap text-center">
-                               <div className="flex items-center justify-center gap-2">
-                                 <select
-                                   disabled={isRecordReadOnly(batch)}
-                                   value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
-                                   onChange={(e) => updateContactData(batch.id, contact.id, { status: e.target.value as any })}
-                                   className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
-                                     contact.status === 'converted' || contact.subscriptionClosed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-                                     contact.status === 'no_response' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
-                                     contact.status === 'declined' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
-                                     contact.status === 'invalid_number' ? 'text-zinc-400 border-zinc-500/30 bg-zinc-500/10' :
-                                     contact.status === 'frequent' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' :
-                                     contact.status === 'scheduled' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' :
-                                     contact.status === 'contacted' || contact.called ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
-                                     'text-zinc-500 border-zinc-700'
-                                   }`}
-                                 >
-                                   <option value="pending">Pendente</option>
-                                   <option value="contacted">Contatado</option>
-                                   <option value="no_response">Não Respondeu</option>
-                                   <option value="declined">Recusou</option>
-                                   <option value="invalid_number">Número não existe</option>
-                                   <option value="frequent">Frequente</option>
-                                   <option value="scheduled">Agendou 📅</option>
-                                   <option value="converted">Assinou ✅</option>
-                                 </select>
-                                 
-                                 {(contact.status === 'converted' || contact.subscriptionClosed) && (
-                                   <div className="flex items-center gap-1.5 p-1 bg-zinc-950/60 border border-zinc-800 rounded-lg shadow-inner">
-                                     <input
-                                       disabled={isRecordReadOnly(batch)}
-                                       type="date"
-                                       title="Data de Ativação"
-                                       value={contact.activationDate || ''}
-                                       onChange={(e) => updateContactData(batch.id, contact.id, { activationDate: e.target.value })}
-                                       className="bg-zinc-900 border border-zinc-800/80 rounded px-1.5 py-1 text-[10px] text-zinc-200 focus:outline-none focus:border-brand w-24 font-mono [&::-webkit-calendar-picker-indicator]:invert"
-                                     />
-                                     <input
-                                       disabled={isRecordReadOnly(batch)}
-                                       type="text"
-                                       placeholder="Nº Cartão"
-                                       title="Número do Cartão"
-                                       value={contact.cardNumber || ''}
-                                       onChange={(e) => updateContactData(batch.id, contact.id, { cardNumber: e.target.value })}
-                                       className="bg-zinc-900 border border-zinc-800/80 rounded px-1.5 py-1 text-[10px] text-zinc-200 focus:outline-none focus:border-brand w-[68px] font-mono placeholder-zinc-700"
-                                     />
-                                   </div>
-                                 )}
-                               </div>
+                               <select
+                                 disabled={isRecordReadOnly(batch)}
+                                 value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
+                                 onChange={(e) => updateContactData(batch.id, contact.id, { status: e.target.value as any })}
+                                 className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
+                                   contact.status === 'converted' || contact.subscriptionClosed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                                   contact.status === 'no_response' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
+                                   contact.status === 'declined' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+                                   contact.status === 'invalid_number' ? 'text-zinc-400 border-zinc-500/30 bg-zinc-500/10' :
+                                   contact.status === 'frequent' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' :
+                                   contact.status === 'scheduled' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' :
+                                   contact.status === 'contacted' || contact.called ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
+                                   'text-zinc-500 border-zinc-700'
+                                 }`}
+                               >
+                                 <option value="pending">Pendente</option>
+                                 <option value="contacted">Contatado</option>
+                                 <option value="no_response">Não Respondeu</option>
+                                 <option value="declined">Recusou</option>
+                                 <option value="invalid_number">Número não existe</option>
+                                 <option value="frequent">Frequente</option>
+                                 <option value="scheduled">Agendou 📅</option>
+                                 <option value="converted">Assinou ✅</option>
+                               </select>
                              </td>
                              <td className="px-6 py-3 whitespace-nowrap text-center">
                                <select

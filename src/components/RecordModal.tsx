@@ -141,22 +141,30 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
     setContacts(contacts.filter(c => c.id !== id));
   };
 
-  const toggleContactField = (id: string, field: 'subscriptionClosed' | 'called') => {
+  const handleStatusChange = (id: string, newStatus: any) => {
     setContacts(contacts.map(c => {
       if (c.id === id) {
-        const newValue = !c[field];
-        const updates: Partial<ContactPerson> = { [field]: newValue };
-        if (field === 'called') {
-          updates.calledAt = newValue ? new Date().toISOString() : undefined;
+        const isConverted = newStatus === 'converted';
+        const isCalled = newStatus !== 'pending';
+        const updates: Partial<ContactPerson> = {
+          status: newStatus,
+          subscriptionClosed: isConverted,
+          called: isCalled
+        };
+        
+        if (isCalled && !c.called) {
+          updates.calledAt = new Date().toISOString();
+        } else if (!isCalled) {
+          updates.calledAt = undefined;
         }
-        if (field === 'subscriptionClosed') {
-          if (newValue) {
-            updates.status = 'converted';
-          } else {
-            updates.status = 'pending';
-            updates.activationDate = undefined;
-            updates.cardNumber = undefined;
+        
+        if (isConverted) {
+          if (!c.activationDate) {
+            updates.activationDate = new Date().toISOString().split('T')[0];
           }
+        } else {
+          updates.activationDate = undefined;
+          updates.cardNumber = undefined;
         }
         return { ...c, ...updates };
       }
@@ -315,29 +323,30 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                           <span className="text-sm font-medium text-zinc-200">{contact.name}</span>
                           <span className="text-xs text-zinc-500">{contact.phone}</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              disabled={isReadOnly}
-                              type="checkbox"
-                              checked={!!contact.called}
-                              onChange={() => toggleContactField(contact.id, 'called')}
-                              className="w-4 h-4 rounded border-zinc-700 text-blue-500 focus:ring-blue-500/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                            <span className="text-xs text-zinc-400">Chamou?</span>
-                          </label>
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              disabled={isReadOnly}
-                              type="checkbox"
-                              checked={!!contact.subscriptionClosed}
-                              onChange={() => toggleContactField(contact.id, 'subscriptionClosed')}
-                              className="w-4 h-4 rounded border-zinc-700 text-red-600 focus:ring-red-600/50 bg-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                            <span className="text-xs text-zinc-400">Assinou?</span>
-                          </label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {/* Status ROI select */}
                           <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-zinc-500 font-medium font-mono">Fidelimax:</span>
+                            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider font-mono">Status ROI:</span>
+                            <select
+                              disabled={isReadOnly}
+                              value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
+                              onChange={(e) => handleStatusChange(contact.id, e.target.value as any)}
+                              className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-brand cursor-pointer"
+                            >
+                              <option value="pending">Pendente</option>
+                              <option value="contacted">Contatado</option>
+                              <option value="no_response">Não Respondeu</option>
+                              <option value="declined">Recusou</option>
+                              <option value="invalid_number">Número Não Existe</option>
+                              <option value="frequent">Frequente</option>
+                              <option value="scheduled">Agendou 📅</option>
+                              <option value="converted">Assinou ✅</option>
+                            </select>
+                          </div>
+
+                          {/* Fidelimax select */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider font-mono">Fidelimax:</span>
                             <select
                               disabled={isReadOnly}
                               value={contact.fidelimaxStatus || 'pending'}
@@ -349,8 +358,10 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                               <option value="not_applicable">N/A 🚫</option>
                             </select>
                           </div>
+
+                          {/* Seller select */}
                           <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-zinc-500 font-medium font-mono">Vendedor:</span>
+                            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider font-mono">Vendedor:</span>
                             <select
                               disabled={isReadOnly}
                               value={contact.sellerId || ''}
@@ -363,6 +374,7 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                               ))}
                             </select>
                           </div>
+
                           {!isReadOnly && (
                             <button
                               type="button"
@@ -375,9 +387,23 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                           )}
                         </div>
                       </div>
-                      
-                      {contact.subscriptionClosed && (
-                        <div className="flex flex-col sm:flex-row gap-3 pt-3 mt-1.5 border-t border-zinc-800/50 bg-zinc-950/30 p-2.5 rounded-lg border border-zinc-800/40">
+
+                      {/* Observações / Anotações */}
+                      <div className="flex flex-col gap-1 pt-1.5 border-t border-zinc-800/40">
+                        <label className="text-[9px] uppercase font-semibold tracking-wider text-zinc-500 font-mono">Anotações / Observações</label>
+                        <input
+                          disabled={isReadOnly}
+                          type="text"
+                          placeholder="Adicione observações sobre o atendimento deste lead..."
+                          value={contact.notes || ''}
+                          onChange={(e) => updateContactField(contact.id, 'notes', e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-brand"
+                        />
+                      </div>
+
+                      {/* Se assinou, abre campos de data de ativação e número do cartão */}
+                      {(contact.status === 'converted' || contact.subscriptionClosed) && (
+                        <div className="flex flex-col sm:flex-row gap-3 pt-2 mt-0.5 border-t border-zinc-800/40 bg-zinc-950/20 p-2 rounded-lg border border-zinc-800/40">
                           <div className="flex-1">
                             <label className="block text-[9px] uppercase font-semibold tracking-wider text-zinc-500 mb-1 font-mono">Data Ativação</label>
                             <input
