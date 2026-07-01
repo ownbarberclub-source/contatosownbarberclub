@@ -10,6 +10,7 @@ import { DashboardTab } from './components/DashboardTab';
 import { SellersTab } from './components/SellersTab';
 import { exportToExcel, exportToPDF, exportGroupToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
+import { LeadEditModal } from './components/LeadEditModal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -32,6 +33,11 @@ export default function App() {
   const [editingRecord, setEditingRecord] = useState<ReferralRecord | null>(null);
   const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Estados de edição de Lead individual (lápis)
+  const [editingLead, setEditingLead] = useState<ContactPerson | null>(null);
+  const [editingLeadRecord, setEditingLeadRecord] = useState<ReferralRecord | null>(null);
+  const [isLeadEditModalOpen, setIsLeadEditModalOpen] = useState(false);
 
   // Estados de Filtros Avançados
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -637,6 +643,49 @@ export default function App() {
         alert("Falha ao salvar alteração no banco de dados.");
         loadAppData(); // Recarrega para não ficar com dado falso na tela
       }
+    }
+  };
+
+  const handleSaveLead = async (updatedContact: ContactPerson, newBarberId: string) => {
+    if (!editingLeadRecord || !editingLead) return;
+
+    const recordId = editingLeadRecord.id;
+    const contactId = editingLead.id;
+
+    const selectedBarber = barbers.find(b => b.id === newBarberId);
+    const barberName = selectedBarber?.name || editingLeadRecord.barberName;
+
+    // Atualiza estado local
+    setRecords(prev => prev.map(rec => {
+      if (rec.id !== recordId) return rec;
+      return {
+        ...rec,
+        barberId: newBarberId,
+        barberName,
+        contacts: rec.contacts.map(c => c.id === contactId ? updatedContact : c)
+      };
+    }));
+
+    // Persiste no Supabase
+    try {
+      const record = records.find(r => r.id === recordId);
+      if (record) {
+        const updatedContacts = record.contacts.map(c => c.id === contactId ? updatedContact : c);
+        const { error } = await supabase
+          .from('referral_records')
+          .update({ 
+            barberId: newBarberId,
+            barberName,
+            contacts: updatedContacts 
+          })
+          .eq('id', recordId);
+        
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error("Erro ao salvar lead:", err);
+      alert("Erro ao salvar alterações no servidor.");
+      loadAppData();
     }
   };
 
@@ -1438,9 +1487,13 @@ export default function App() {
                              </td>
                              <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                               <button
-                                onClick={() => openEditModal(batch)}
+                                onClick={() => {
+                                  setEditingLead(contact);
+                                  setEditingLeadRecord(batch);
+                                  setIsLeadEditModalOpen(true);
+                                }}
                                 className="text-zinc-500 hover:text-brand transition-colors p-1"
-                                title={isRecordReadOnly(batch) ? "Visualizar Lote (Sem Edição)" : "Editar Lote"}
+                                title="Editar Lead"
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
@@ -1487,6 +1540,19 @@ export default function App() {
         sellers={sellers}
         preFilledClient={preFilledClient}
         activeCampaignId={activeCampaign?.id}
+      />
+
+      <LeadEditModal
+        isOpen={isLeadEditModalOpen}
+        onClose={() => setIsLeadEditModalOpen(false)}
+        onSave={handleSaveLead}
+        contact={editingLead}
+        clientName={editingLeadRecord?.clientName || ''}
+        clientCpf={editingLeadRecord?.clientCpf || ''}
+        currentBarberId={editingLeadRecord?.barberId || ''}
+        barbers={barbers}
+        sellers={sellers}
+        isReadOnly={isRecordReadOnly(editingLeadRecord)}
       />
 
       {/* Campaign Manager Modal */}
