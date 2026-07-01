@@ -8,7 +8,7 @@ import { BarbersTab } from './components/BarbersTab';
 import { UsersTab } from './components/UsersTab';
 import { DashboardTab } from './components/DashboardTab';
 import { ConfigTab } from './components/ConfigTab';
-import { exportToExcel, exportToPDF, exportGroupToPDF } from './exportUtils';
+import { exportToExcel, exportToPDF, exportGroupToPDF, exportGroupToPDFAdmin } from './exportUtils';
 import { supabase } from './supabaseClient';
 import { LeadEditModal } from './components/LeadEditModal';
 
@@ -1392,6 +1392,16 @@ export default function App() {
                       <FileText className="w-4 h-4" />
                       <span className="hidden sm:inline">Exportar PDF</span>
                     </button>
+                    {currentUser.isAdmin && (
+                      <button
+                        onClick={() => exportGroupToPDFAdmin(group.clientName, group.clientCpf, group.batches, sellers, plans)}
+                        className="flex items-center gap-2 bg-zinc-800 text-amber-400 hover:text-amber-300 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700 cursor-pointer"
+                        title="Exportar PDF Completo (Financeiro/Planos/Cartões)"
+                      >
+                        <FileText className="w-4 h-4 text-amber-500" />
+                        <span className="hidden sm:inline">PDF Admin</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => openNewModalWithClient(group.clientCpf, group.clientName)}
                       className="flex items-center gap-2 bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
