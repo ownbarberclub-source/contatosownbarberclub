@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Seller, ReferralRecord, User } from '../types';
-import { Users, UserPlus, Plus, Trash2, Edit2, Check, X, Award, Percent, Target } from 'lucide-react';
+import { Users, UserPlus, Plus, Trash2, Edit2, Check, X, Award, Percent, Target, CalendarDays } from 'lucide-react';
 
 interface SellersTabProps {
   sellers: Seller[];
@@ -16,11 +16,23 @@ export function SellersTab({ sellers, records, currentUser, onAddSeller, onUpdat
   const [editingSellerId, setEditingSellerId] = useState<string | null>(null);
   const [editSellerName, setEditSellerName] = useState('');
   
-  // Month selector YYYY-MM
+  const [viewType, setViewType] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    return new Date().getFullYear().toString();
+  });
+
+  const yearsOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let y = 2024; y <= currentYear + 1; y++) {
+      years.push(y.toString());
+    }
+    return years;
+  }, []);
 
   const handleAddSeller = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,14 +57,23 @@ export function SellersTab({ sellers, records, currentUser, onAddSeller, onUpdat
 
   // Ranking calculation for Sellers
   const sellersRanking = useMemo(() => {
-    const year = selectedMonth.split('-')[0];
-    const month = selectedMonth.split('-')[1];
+    let monthRecords = records;
+    if (viewType === 'monthly') {
+      const year = selectedMonth.split('-')[0];
+      const month = selectedMonth.split('-')[1];
 
-    const monthRecords = records.filter(record => {
-      if (!record.createdAt) return false;
-      const date = new Date(record.createdAt);
-      return date.getFullYear().toString() === year && String(date.getMonth() + 1).padStart(2, '0') === month;
-    });
+      monthRecords = records.filter(record => {
+        if (!record.createdAt) return false;
+        const date = new Date(record.createdAt);
+        return date.getFullYear().toString() === year && String(date.getMonth() + 1).padStart(2, '0') === month;
+      });
+    } else {
+      monthRecords = records.filter(record => {
+        if (!record.createdAt) return false;
+        const date = new Date(record.createdAt);
+        return date.getFullYear().toString() === selectedYear;
+      });
+    }
 
     const ranking = sellers.map(seller => {
       let closedSubscriptions = 0;
@@ -88,7 +109,7 @@ export function SellersTab({ sellers, records, currentUser, onAddSeller, onUpdat
 
     // Sort by conversions descending, then by total leads descending
     return ranking.sort((a, b) => b.closedSubscriptions - a.closedSubscriptions || b.totalLeads - a.totalLeads);
-  }, [selectedMonth, records, sellers]);
+  }, [viewType, selectedMonth, selectedYear, records, sellers]);
 
   return (
     <div className="space-y-8">
@@ -209,19 +230,58 @@ export function SellersTab({ sellers, records, currentUser, onAddSeller, onUpdat
             </div>
             <div>
               <h3 className="text-lg font-bold text-zinc-100">Desempenho Comercial</h3>
-              <p className="text-xs text-zinc-400">Assinaturas e conversões fechadas por vendedor no mês</p>
+              <p className="text-xs text-zinc-400">Assinaturas e conversões fechadas por vendedor no período</p>
             </div>
           </div>
 
-          {/* Month Filter */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 flex items-center gap-2 self-end">
-            <span className="text-xs text-zinc-500 font-semibold uppercase tracking-wider font-mono">Mês de Referência:</span>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none text-zinc-100 focus:outline-none text-sm font-semibold cursor-pointer [&::-webkit-calendar-picker-indicator]:invert"
-            />
+          <div className="flex items-center gap-3">
+            {/* Seletor Mensal / Anual */}
+            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setViewType('monthly')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewType === 'monthly'
+                    ? 'bg-zinc-800 text-brand shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewType('yearly')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewType === 'yearly'
+                    ? 'bg-zinc-800 text-brand shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Anual
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+              <CalendarDays className="w-4 h-4 text-brand" />
+              {viewType === 'monthly' ? (
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-transparent border-none text-zinc-100 focus:outline-none text-xs font-medium cursor-pointer uppercase [&::-webkit-calendar-picker-indicator]:invert"
+                />
+              ) : (
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="bg-transparent border-none text-zinc-100 focus:outline-none text-xs font-medium cursor-pointer"
+                >
+                  {yearsOptions.map(y => (
+                    <option key={y} value={y} className="bg-zinc-900 text-zinc-100">{y}</option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
         </div>
 

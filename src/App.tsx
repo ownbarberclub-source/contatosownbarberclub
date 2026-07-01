@@ -33,6 +33,13 @@ export default function App() {
   const [preFilledClient, setPreFilledClient] = useState<{ cpf: string; name: string } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
+  // Estados de Filtros Avançados
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterBarberId, setFilterBarberId] = useState<string>('all');
+  const [filterSellerId, setFilterSellerId] = useState<string>('all');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
+
   // Estados de Campanha
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
@@ -738,6 +745,50 @@ export default function App() {
     return records.filter(r => r.campaign_id === selectedCampaignId);
   }, [records, selectedCampaignId]);
 
+  const filteredRecordsForList = useMemo(() => {
+    return campaignFilteredRecords.map(record => {
+      // 1. Filtragem por data de criação do lote
+      if (filterStartDate || filterEndDate) {
+        const recordDate = record.createdAt ? new Date(record.createdAt) : new Date('2024-01-01');
+        if (filterStartDate) {
+          const start = new Date(filterStartDate + 'T00:00:00');
+          if (recordDate < start) return null;
+        }
+        if (filterEndDate) {
+          const end = new Date(filterEndDate + 'T23:59:59');
+          if (recordDate > end) return null;
+        }
+      }
+
+      // 2. Filtragem por barbeiro
+      if (filterBarberId !== 'all' && record.barberId !== filterBarberId) {
+        return null;
+      }
+
+      // 3. Filtragem por contatos (status e vendedor)
+      const validContacts = record.contacts || [];
+      const matchingContacts = validContacts.filter(contact => {
+        if (filterStatus !== 'all') {
+          const cStatus = contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending');
+          if (cStatus !== filterStatus) return false;
+        }
+        if (filterSellerId !== 'all' && contact.sellerId !== filterSellerId) {
+          return false;
+        }
+        return true;
+      });
+
+      if ((filterStatus !== 'all' || filterSellerId !== 'all') && matchingContacts.length === 0) {
+        return null;
+      }
+
+      return {
+        ...record,
+        contacts: matchingContacts
+      };
+    }).filter((r): r is ReferralRecord => r !== null);
+  }, [campaignFilteredRecords, filterStatus, filterBarberId, filterSellerId, filterStartDate, filterEndDate]);
+
   const clientGroups = useMemo(() => {
     const groups: Record<string, {
       clientName: string;
@@ -745,7 +796,7 @@ export default function App() {
       batches: ReferralRecord[];
     }> = {};
 
-    campaignFilteredRecords.forEach(record => {
+    filteredRecordsForList.forEach(record => {
       const cpf = cleanCPF(record.clientCpf);
       if (!groups[cpf]) {
         groups[cpf] = {
@@ -758,7 +809,7 @@ export default function App() {
     });
 
     return Object.values(groups);
-  }, [campaignFilteredRecords]);
+  }, [filteredRecordsForList]);
 
   const filteredGroups = useMemo(() => {
     if (!searchQuery) return clientGroups;
@@ -776,7 +827,7 @@ export default function App() {
   }, [clientGroups, searchQuery]);
 
   const stats = useMemo(() => {
-    const allContacts = campaignFilteredRecords.flatMap(r => r.contacts || []);
+    const allContacts = filteredRecordsForList.flatMap(r => r.contacts || []);
     const calledTotal = allContacts.filter(c => c.status && c.status !== 'pending').length;
     const converted = allContacts.filter(c => c.status === 'converted' || c.subscriptionClosed).length;
     const noResponse = allContacts.filter(c => c.status === 'no_response').length;
@@ -788,7 +839,7 @@ export default function App() {
     ).length;
 
     return {
-      totalClients: new Set(campaignFilteredRecords.map(r => cleanCPF(r.clientCpf))).size,
+      totalClients: new Set(filteredRecordsForList.map(r => cleanCPF(r.clientCpf))).size,
       totalLeads: allContacts.length,
       closedSubscriptions: converted,
       leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
@@ -796,7 +847,7 @@ export default function App() {
       conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
       noResponseRate: calledTotal > 0 ? Math.round((noResponse / calledTotal) * 100) : 0,
     };
-  }, [campaignFilteredRecords, selectedDate]);
+  }, [filteredRecordsForList, selectedDate]);
 
   if (hubLoading) {
     return (
@@ -1029,7 +1080,7 @@ export default function App() {
                     {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
                       <>
                         <button
-                          onClick={() => exportToPDF(campaignFilteredRecords, sellers)}
+                          onClick={() => exportToPDF(filteredRecordsForList, sellers)}
                           className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
                           title="Exportar para PDF"
                         >
@@ -1037,7 +1088,7 @@ export default function App() {
                           <span className="hidden lg:inline">PDF</span>
                         </button>
                         <button
-                          onClick={() => exportToExcel(campaignFilteredRecords, sellers)}
+                          onClick={() => exportToExcel(filteredRecordsForList, sellers)}
                           className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
                           title="Exportar para Excel"
                         >
@@ -1062,6 +1113,83 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Filtros Avançados */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-xl">
+                
+                {/* Filtro Status */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Status ROI</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-brand cursor-pointer h-9"
+                  >
+                    <option value="all">Todos os Status</option>
+                    <option value="pending">Pendente</option>
+                    <option value="contacted">Contatado</option>
+                    <option value="no_response">Não Respondeu</option>
+                    <option value="declined">Recusou</option>
+                    <option value="invalid_number">Número Não Existe</option>
+                    <option value="frequent">Frequente</option>
+                    <option value="scheduled">Agendou 📅</option>
+                    <option value="converted">Assinou ✅</option>
+                  </select>
+                </div>
+
+                {/* Filtro Barbeiro */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Barbeiro</label>
+                  <select
+                    value={filterBarberId}
+                    onChange={(e) => setFilterBarberId(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-brand cursor-pointer h-9"
+                  >
+                    <option value="all">Todos os Barbeiros</option>
+                    {barbers.map(barber => (
+                      <option key={barber.id} value={barber.id}>{barber.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filtro Vendedor */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Vendedor</label>
+                  <select
+                    value={filterSellerId}
+                    onChange={(e) => setFilterSellerId(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-brand cursor-pointer h-9"
+                  >
+                    <option value="all">Todos os Vendedores</option>
+                    {sellers.map(seller => (
+                      <option key={seller.id} value={seller.id}>{seller.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Data Inicial */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Data Cadastro (De)</label>
+                  <input
+                    type="date"
+                    value={filterStartDate}
+                    onChange={(e) => setFilterStartDate(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-brand [&::-webkit-calendar-picker-indicator]:invert h-9 cursor-pointer"
+                  />
+                </div>
+
+                {/* Data Final */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Data Cadastro (Até)</label>
+                  <input
+                    type="date"
+                    value={filterEndDate}
+                    onChange={(e) => setFilterEndDate(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-brand [&::-webkit-calendar-picker-indicator]:invert h-9 cursor-pointer"
+                  />
+                </div>
+
               </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">

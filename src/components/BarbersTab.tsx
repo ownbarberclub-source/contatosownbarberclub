@@ -24,11 +24,23 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
   const [editBarberName, setEditBarberName] = useState('');
   const [editBarberUnit, setEditBarberUnit] = useState('');
   
-  // Month selector YYYY-MM
+  const [viewType, setViewType] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    return new Date().getFullYear().toString();
+  });
+
+  const yearsOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let y = 2024; y <= currentYear + 1; y++) {
+      years.push(y.toString());
+    }
+    return years;
+  }, []);
 
   const handleAddUnit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,20 +79,28 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
 
   // Ranking calculation
   const barbersRanking = useMemo(() => {
-    // Filter records by selected month
-    const year = selectedMonth.split('-')[0];
-    const month = selectedMonth.split('-')[1];
+    let monthRecords = records;
+    if (viewType === 'monthly') {
+      const year = selectedMonth.split('-')[0];
+      const month = selectedMonth.split('-')[1];
 
-    const monthRecords = records.filter(record => {
-      if (!record.createdAt) return false;
-      const date = new Date(record.createdAt);
-      return date.getFullYear().toString() === year && String(date.getMonth() + 1).padStart(2, '0') === month;
-    });
+      monthRecords = records.filter(record => {
+        if (!record.createdAt) return false;
+        const date = new Date(record.createdAt);
+        return date.getFullYear().toString() === year && String(date.getMonth() + 1).padStart(2, '0') === month;
+      });
+    } else {
+      monthRecords = records.filter(record => {
+        if (!record.createdAt) return false;
+        const date = new Date(record.createdAt);
+        return date.getFullYear().toString() === selectedYear;
+      });
+    }
 
     const ranking = barbers.map(barber => {
       const unit = units.find(u => u.id === barber.unit_id);
       
-      // Get all records for this barber in this month
+      // Get all records for this barber in this month/year
       const barberRecords = monthRecords.filter(r => r.barberId === barber.id || r.barberName === barber.name);
       
       // Sum closed subscriptions
@@ -104,7 +124,7 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
 
     // Sort by subscriptions descending
     return ranking.sort((a, b) => b.closedSubscriptions - a.closedSubscriptions);
-  }, [selectedMonth, records, barbers, units]);
+  }, [viewType, selectedMonth, selectedYear, records, barbers, units]);
 
   return (
     <div className="space-y-8">
@@ -250,14 +270,54 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
             <h3 className="text-xl font-bold text-zinc-100">Relatório e Ranking de Indicações</h3>
           </div>
           
-          <div className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
-            <CalendarDays className="w-5 h-5 text-brand" />
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none text-zinc-100 focus:outline-none text-sm font-medium cursor-pointer uppercase"
-            />
+          <div className="flex items-center gap-3">
+            {/* Seletor Mensal / Anual */}
+            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setViewType('monthly')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewType === 'monthly'
+                    ? 'bg-zinc-800 text-brand shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewType('yearly')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewType === 'yearly'
+                    ? 'bg-zinc-800 text-brand shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Anual
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+              <CalendarDays className="w-4 h-4 text-brand" />
+              {viewType === 'monthly' ? (
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-transparent border-none text-zinc-100 focus:outline-none text-xs font-medium cursor-pointer uppercase [&::-webkit-calendar-picker-indicator]:invert"
+                />
+              ) : (
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="bg-transparent border-none text-zinc-100 focus:outline-none text-xs font-medium cursor-pointer"
+                >
+                  {yearsOptions.map(y => (
+                    <option key={y} value={y} className="bg-zinc-900 text-zinc-100">{y}</option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
         </div>
         

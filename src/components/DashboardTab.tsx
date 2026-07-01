@@ -20,6 +20,24 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
     return d.toISOString().split('T')[0];
   });
 
+  const setPreset = (preset: '30days' | 'month' | 'year') => {
+    const today = new Date();
+    if (preset === '30days') {
+      const start = new Date();
+      start.setDate(today.getDate() - 30);
+      setStartDate(start.toISOString().split('T')[0]);
+      setEndDate(today.toISOString().split('T')[0]);
+    } else if (preset === 'month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      setStartDate(firstDay.toISOString().split('T')[0]);
+      setEndDate(today.toISOString().split('T')[0]);
+    } else if (preset === 'year') {
+      const firstDay = new Date(today.getFullYear(), 0, 1);
+      setStartDate(firstDay.toISOString().split('T')[0]);
+      setEndDate(today.toISOString().split('T')[0]);
+    }
+  };
+
   // Filtragem de records por data
   const filteredRecords = useMemo(() => {
     const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
@@ -192,26 +210,53 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
           </div>
         </div>
 
-        {/* Filtros de Data */}
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1 ml-1">Data Inicial</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:border-brand [&::-webkit-calendar-picker-indicator]:filter-white"
-            />
+        {/* Filtros de Data com Presets */}
+        <div className="flex flex-col sm:flex-row items-end gap-3">
+          {/* Presets */}
+          <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800 self-end">
+            <button
+              type="button"
+              onClick={() => setPreset('30days')}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-all cursor-pointer"
+            >
+              30 Dias
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreset('month')}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-all cursor-pointer"
+            >
+              Mês
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreset('year')}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-all cursor-pointer"
+            >
+              Ano
+            </button>
           </div>
-          <div className="mt-5 text-zinc-600 font-bold">-</div>
-          <div className="flex flex-col">
-            <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1 ml-1">Data Final</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:border-brand [&::-webkit-calendar-picker-indicator]:filter-white"
-            />
+
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col">
+              <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-1 ml-1">Início</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-brand [&::-webkit-calendar-picker-indicator]:invert"
+              />
+            </div>
+            <div className="mt-5 text-zinc-600 font-bold">-</div>
+            <div className="flex flex-col">
+              <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-1 ml-1">Fim</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-brand [&::-webkit-calendar-picker-indicator]:invert"
+              />
+            </div>
           </div>
         </div>
       </div>
