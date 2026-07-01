@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { ReferralRecord } from '../types';
+import { ReferralRecord, Seller } from '../types';
 import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown, AlertTriangle, PhoneOff, RefreshCcw, PhoneCall } from 'lucide-react';
 
 interface DashboardTabProps {
   records: ReferralRecord[];
+  sellers: Seller[];
 }
 
-export function DashboardTab({ records }: DashboardTabProps) {
+export function DashboardTab({ records, sellers }: DashboardTabProps) {
   // Configuração padrão de datas (Últimos 30 dias até hoje)
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -52,6 +53,12 @@ export function DashboardTab({ records }: DashboardTabProps) {
 
     const barberPerformance: Record<string, { leads: number, conversions: number, noResponse: number }> = {};
     const receptionistPerformance: Record<string, { created: number, conversions: number }> = {};
+    const sellerPerformance: Record<string, { name: string, leads: number, conversions: number }> = {};
+
+    // Inicializa com todos os vendedores ativos para aparecerem com 0 leads se for o caso
+    sellers.forEach(s => {
+      sellerPerformance[s.id] = { name: s.name, leads: 0, conversions: 0 };
+    });
 
     filteredRecords.forEach(record => {
       const bName = record.barberName || 'Desconhecido';
@@ -84,6 +91,20 @@ export function DashboardTab({ records }: DashboardTabProps) {
         if (contact.status === 'scheduled') {
           scheduledLeads++;
         }
+        
+        // Atribuição de vendedor
+        if (contact.sellerId) {
+          if (!sellerPerformance[contact.sellerId]) {
+            const foundSeller = sellers.find(s => s.id === contact.sellerId);
+            sellerPerformance[contact.sellerId] = { 
+              name: foundSeller ? foundSeller.name : 'Desconhecido', 
+              leads: 0, 
+              conversions: 0 
+            };
+          }
+          sellerPerformance[contact.sellerId].leads++;
+        }
+
         // Prioritiza o novo sistema de status para o Analytics
         const isConverted = contact.status 
           ? contact.status === 'converted' 
@@ -93,6 +114,9 @@ export function DashboardTab({ records }: DashboardTabProps) {
           convertedLeads++;
           barberPerformance[bName].conversions++;
           receptionistPerformance[rName].conversions++;
+          if (contact.sellerId) {
+            sellerPerformance[contact.sellerId].conversions++;
+          }
         }
       });
     });
@@ -127,8 +151,15 @@ export function DashboardTab({ records }: DashboardTabProps) {
       })
       .slice(0, 5);
 
-    return { totalLeads, contactRate, contactedLeads, scheduledRate, scheduledLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, invalidNumberRate, invalidNumberLeads, frequentRate, frequentLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion };
-  }, [filteredRecords]);
+    // Ordenação do Ranking de Vendedores
+    const topSellers = Object.entries(sellerPerformance)
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.conversions === a.conversions 
+          ? b.leads - a.leads 
+          : b.conversions - a.conversions);
+
+    return { totalLeads, contactRate, contactedLeads, scheduledRate, scheduledLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, invalidNumberRate, invalidNumberLeads, frequentRate, frequentLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion, topSellers };
+  }, [filteredRecords, sellers]);
 
   // UI Components Extras
   const StatisticCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
@@ -274,6 +305,46 @@ export function DashboardTab({ records }: DashboardTabProps) {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        </div>
+
+        {/* Painel do Vendedor */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <Target className="w-48 h-48" />
+          </div>
+          <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2 mb-6">
+            <Crown className="w-5 h-5 text-amber-500" />
+            Top Performance (Vendedores)
+          </h3>
+          <div className="space-y-4 relative z-10">
+            {stats.topSellers.length === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-6">Nenhum dado gerado no período selecionado.</p>
+            ) : (
+              stats.topSellers.map((seller, idx) => {
+                const cRate = seller.leads > 0 ? Math.round((seller.conversions / seller.leads) * 100) : 0;
+                return (
+                  <div key={seller.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-950/50 transition-colors border border-transparent hover:border-zinc-800">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-sm ${idx === 0 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'bg-zinc-950 text-zinc-500 border border-zinc-800'}`}>
+                        {idx + 1}
+                      </span>
+                      <span className="font-semibold text-zinc-200">{seller.name}</span>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="text-right">
+                        <span className="block text-xs text-zinc-500 font-medium">CONVERSÃO</span>
+                        <span className="font-bold text-emerald-400">{seller.conversions} <span className="text-[10px] text-zinc-500">({cRate}%)</span></span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-xs text-zinc-500 font-medium">LEADS</span>
+                        <span className="font-bold text-zinc-300">{seller.leads}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

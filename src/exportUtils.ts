@@ -1,21 +1,24 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { ReferralRecord } from './types';
-import { cleanPhone } from './utils';
+import { ReferralRecord, Seller } from './types';
 
-export const exportToExcel = (records: ReferralRecord[]) => {
+export const exportToExcel = (records: ReferralRecord[], sellers: Seller[]) => {
   const data = records.flatMap(record => 
-    (record.contacts || []).map(contact => ({
-      'Cliente': record.clientName,
-      'CPF Cliente': record.clientCpf,
-      'Barbeiro': record.barberName,
-      'Lead': contact.name,
-      'Telefone': contact.phone,
-      'Status': contact.called ? 'Chamado' : 'Pendente',
-      'Assinatura': contact.subscriptionClosed ? 'Fechada' : 'Pendente',
-      'Data Cadastro': new Date(record.createdAt).toLocaleDateString('pt-BR')
-    }))
+    (record.contacts || []).map(contact => {
+      const seller = sellers.find(s => s.id === contact.sellerId);
+      return {
+        'Cliente': record.clientName,
+        'CPF Cliente': record.clientCpf,
+        'Barbeiro': record.barberName,
+        'Vendedor': seller ? seller.name : 'Sem Vendedor',
+        'Lead': contact.name,
+        'Telefone': contact.phone,
+        'Status': contact.called ? 'Chamado' : 'Pendente',
+        'Assinatura': contact.subscriptionClosed ? 'Fechada' : 'Pendente',
+        'Data Cadastro': new Date(record.createdAt).toLocaleDateString('pt-BR')
+      };
+    })
   );
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -24,22 +27,26 @@ export const exportToExcel = (records: ReferralRecord[]) => {
   XLSX.writeFile(workbook, "leads_barbearia.xlsx");
 };
 
-export const exportToPDF = (records: ReferralRecord[]) => {
+export const exportToPDF = (records: ReferralRecord[], sellers: Seller[]) => {
   const doc = new jsPDF();
   
   const tableData = records.flatMap(record => 
-    (record.contacts || []).map(contact => [
-      record.clientName,
-      record.barberName,
-      contact.name,
-      contact.phone,
-      contact.called ? 'Chamado' : 'Pendente',
-      contact.subscriptionClosed ? 'Fechada' : 'Pendente'
-    ])
+    (record.contacts || []).map(contact => {
+      const seller = sellers.find(s => s.id === contact.sellerId);
+      return [
+        record.clientName,
+        record.barberName,
+        seller ? seller.name : 'Sem Vendedor',
+        contact.name,
+        contact.phone,
+        contact.called ? 'Chamado' : 'Pendente',
+        contact.subscriptionClosed ? 'Fechada' : 'Pendente'
+      ];
+    })
   );
 
   autoTable(doc, {
-    head: [['Cliente', 'Barbeiro', 'Lead', 'Telefone', 'Status', 'Assinatura']],
+    head: [['Cliente', 'Barbeiro', 'Vendedor', 'Lead', 'Telefone', 'Status', 'Assinatura']],
     body: tableData,
     styles: { fontSize: 8 },
     headStyles: { fillColor: [225, 6, 0] }, // OWN Barber Club Red
@@ -49,7 +56,7 @@ export const exportToPDF = (records: ReferralRecord[]) => {
   doc.save('leads_barbearia.pdf');
 };
 
-export const exportGroupToPDF = (clientName: string, clientCpf: string, batches: ReferralRecord[]) => {
+export const exportGroupToPDF = (clientName: string, clientCpf: string, batches: ReferralRecord[], sellers: Seller[]) => {
   const doc = new jsPDF();
 
   // Header Title
@@ -100,11 +107,14 @@ export const exportGroupToPDF = (clientName: string, clientCpf: string, batches:
       } else if (contact.called) {
         statusText = 'Chamado';
       }
+
+      const seller = sellers.find(s => s.id === contact.sellerId);
       
       return [
         contact.name,
         contact.phone,
         batch.barberName,
+        seller ? seller.name : 'Sem Vendedor',
         statusText,
         contact.notes || '-'
       ];
@@ -113,17 +123,18 @@ export const exportGroupToPDF = (clientName: string, clientCpf: string, batches:
 
   autoTable(doc, {
     startY: 55,
-    head: [['Nome do Lead', 'Telefone', 'Barbeiro Responsável', 'Status ROI', 'Observações']],
+    head: [['Nome do Lead', 'Telefone', 'Barbeiro Responsável', 'Vendedor', 'Status ROI', 'Observações']],
     body: tableData,
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [225, 6, 0], textColor: [255, 255, 255], fontStyle: 'bold' },
     theme: 'grid',
     columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 35 },
+      0: { cellWidth: 35 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 30 },
       3: { cellWidth: 30 },
-      4: { cellWidth: 'auto' }
+      4: { cellWidth: 25 },
+      5: { cellWidth: 'auto' }
     }
   });
 
@@ -131,3 +142,4 @@ export const exportGroupToPDF = (clientName: string, clientCpf: string, batches:
   const sanitizedClientName = clientName.toLowerCase().replace(/[^a-z0-9]/g, '_');
   doc.save(`leads_${sanitizedClientName}.pdf`);
 };
+

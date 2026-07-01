@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw, Copy, Check, Flag, X } from 'lucide-react';
 import Logo from './assets/logo.png';
-import { ReferralRecord, ContactPerson, User, Unit, Barber, Campaign } from './types';
+import { ReferralRecord, ContactPerson, User, Unit, Barber, Campaign, Seller } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
 import { RecordModal } from './components/RecordModal';
 import { BarbersTab } from './components/BarbersTab';
 import { UsersTab } from './components/UsersTab';
 import { DashboardTab } from './components/DashboardTab';
+import { SellersTab } from './components/SellersTab';
 import { exportToExcel, exportToPDF, exportGroupToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
 
@@ -17,8 +18,9 @@ export default function App() {
   const [debugMsg, setDebugMsg] = useState('');
   const [units, setUnits] = useState<Unit[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
-  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbeiros' | 'dashboard'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbeiros' | 'dashboard' | 'vendedores'>('leads');
   const [users, setUsers] = useState<User[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);
 
   const [records, setRecords] = useState<ReferralRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,6 +169,13 @@ export default function App() {
       }));
       setUsers(mappedUsers);
     }
+
+    // Carregar vendedores
+    const { data: sellersData } = await supabase
+      .from('sellers')
+      .select('*')
+      .order('name', { ascending: true });
+    if (sellersData) setSellers(sellersData);
   };
 
   // Realtime Sync Subscription - Reconfiguração Total
@@ -207,6 +216,18 @@ export default function App() {
         },
         () => {
           console.log("!!! MUDANÇA DETECTADA NO BANCO (campaigns) !!!");
+          loadAppData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sellers'
+        },
+        () => {
+          console.log("!!! MUDANÇA DETECTADA NO BANCO (sellers) !!!");
           loadAppData();
         }
       )
@@ -391,6 +412,24 @@ export default function App() {
     if (window.confirm('Tem certeza que deseja remover este barbeiro?')) {
       setBarbers(barbers.filter(b => b.id !== id));
       await supabase.from('previa_barbers').update({ is_active: false }).eq('id', id);
+    }
+  };
+
+  const handleAddSeller = async (name: string) => {
+    const newSeller = { id: crypto.randomUUID(), name, is_active: true };
+    setSellers(prev => [...prev, newSeller]);
+    await supabase.from('sellers').insert([newSeller]);
+  };
+
+  const handleUpdateSeller = async (id: string, data: Partial<Seller>) => {
+    setSellers(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
+    await supabase.from('sellers').update(data).eq('id', id);
+  };
+
+  const handleRemoveSeller = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover este vendedor?')) {
+      setSellers(prev => prev.filter(s => s.id !== id));
+      await supabase.from('sellers').delete().eq('id', id);
     }
   };
 
@@ -864,6 +903,18 @@ export default function App() {
                   Usuários
                 </button>
               )}
+              {currentUser.isAdmin && (
+                <button
+                  onClick={() => setActiveTab('vendedores')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'vendedores' 
+                      ? 'bg-zinc-800 text-brand' 
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  }`}
+                >
+                  Vendedores
+                </button>
+              )}
             </nav>
           </div>
 
@@ -903,8 +954,17 @@ export default function App() {
             onUpdateBarber={handleUpdateBarber}
             onRemoveBarber={handleRemoveBarber}
           />
-        ) : activeTab === 'dashboard' && currentUser.isAdmin ? (
-          <DashboardTab records={campaignFilteredRecords} />
+                ) : activeTab === 'dashboard' && currentUser.isAdmin ? (
+          <DashboardTab records={campaignFilteredRecords} sellers={sellers} />
+        ) : activeTab === 'vendedores' && currentUser.isAdmin ? (
+          <SellersTab
+            sellers={sellers}
+            records={records}
+            currentUser={currentUser}
+            onAddSeller={handleAddSeller}
+            onUpdateSeller={handleUpdateSeller}
+            onRemoveSeller={handleRemoveSeller}
+          />
         ) : (
           <>
             {/* Stats & Filter Row */}
@@ -969,7 +1029,7 @@ export default function App() {
                     {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
                       <>
                         <button
-                          onClick={() => exportToPDF(campaignFilteredRecords)}
+                          onClick={() => exportToPDF(campaignFilteredRecords, sellers)}
                           className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
                           title="Exportar para PDF"
                         >
@@ -977,7 +1037,7 @@ export default function App() {
                           <span className="hidden lg:inline">PDF</span>
                         </button>
                         <button
-                          onClick={() => exportToExcel(campaignFilteredRecords)}
+                          onClick={() => exportToExcel(campaignFilteredRecords, sellers)}
                           className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
                           title="Exportar para Excel"
                         >
@@ -1086,7 +1146,7 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
                       <button
-                        onClick={() => exportGroupToPDF(group.clientName, group.clientCpf, group.batches)}
+                        onClick={() => exportGroupToPDF(group.clientName, group.clientCpf, group.batches, sellers)}
                         className="flex items-center gap-2 bg-zinc-800 text-zinc-300 hover:text-red-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700 cursor-pointer"
                         title="Exportar Indicador para PDF"
                       >
@@ -1119,6 +1179,7 @@ export default function App() {
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Lead</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Telefone</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Barbeiro</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Vendedor</th>
                         <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status ROI</th>
                         <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status Fidelimax</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Notas / Observações</th>
@@ -1164,6 +1225,21 @@ export default function App() {
                                  {barbers.map(barber => (
                                    <option key={barber.id} value={barber.id} className="bg-zinc-900 text-zinc-100">
                                      {barber.name}
+                                   </option>
+                                 ))}
+                               </select>
+                             </td>
+                             <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">
+                               <select
+                                 disabled={isRecordReadOnly(batch)}
+                                 value={contact.sellerId || ''}
+                                 onChange={(e) => updateContactData(batch.id, contact.id, { sellerId: e.target.value })}
+                                 className="bg-transparent border-none text-zinc-400 hover:text-zinc-100 focus:text-zinc-100 focus:outline-none cursor-pointer p-0 w-full disabled:cursor-not-allowed disabled:text-zinc-600"
+                               >
+                                 <option value="" className="bg-zinc-900 text-zinc-500">Sem Vendedor...</option>
+                                 {sellers.filter(s => s.is_active).map(seller => (
+                                   <option key={seller.id} value={seller.id} className="bg-zinc-900 text-zinc-100">
+                                     {seller.name}
                                    </option>
                                  ))}
                                </select>
@@ -1271,7 +1347,7 @@ export default function App() {
                       )}
                       {group.batches.every(b => !b.contacts || b.contacts.length === 0) && (
                         <tr>
-                          <td colSpan={7} className="px-6 py-8 text-center text-sm text-zinc-500">
+                          <td colSpan={8} className="px-6 py-8 text-center text-sm text-zinc-500">
                             Nenhum lead registrado para este cliente.
                           </td>
                         </tr>
@@ -1296,6 +1372,7 @@ export default function App() {
         isReadOnly={isRecordReadOnly(editingRecord)}
         records={records}
         barbers={barbers}
+        sellers={sellers}
         preFilledClient={preFilledClient}
         activeCampaignId={activeCampaign?.id}
       />

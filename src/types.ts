@@ -10,6 +10,14 @@ export interface ContactPerson {
   activationDate?: string;
   cardNumber?: string;
   fidelimaxStatus?: 'pending' | 'launched' | 'not_applicable';
+  sellerId?: string; // ID do vendedor responsável
+}
+
+export interface Seller {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at?: string;
 }
 
 export interface Campaign {

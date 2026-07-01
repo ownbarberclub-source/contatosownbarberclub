@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
-import { ReferralRecord, ContactPerson, Barber } from '../types';
+import { ReferralRecord, ContactPerson, Barber, Seller } from '../types';
 import { formatCPF, formatPhone, cleanCPF, cleanPhone } from '../utils';
 
 interface RecordModalProps {
@@ -15,9 +15,10 @@ interface RecordModalProps {
   barbers: Barber[];
   preFilledClient?: { cpf: string; name: string } | null;
   activeCampaignId?: string;
+  sellers: Seller[];
 }
 
-export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, isReadOnly = false, records, barbers, preFilledClient, activeCampaignId }: RecordModalProps) {
+export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, isReadOnly = false, records, barbers, preFilledClient, activeCampaignId, sellers }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
   const [barberId, setBarberId] = useState('');
@@ -346,6 +347,20 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                               <option value="pending">Pendente</option>
                               <option value="launched">Lançado ✅</option>
                               <option value="not_applicable">N/A 🚫</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-zinc-500 font-medium font-mono">Vendedor:</span>
+                            <select
+                              disabled={isReadOnly}
+                              value={contact.sellerId || ''}
+                              onChange={(e) => updateContactField(contact.id, 'sellerId', e.target.value)}
+                              className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-brand cursor-pointer"
+                            >
+                              <option value="">Nenhum</option>
+                              {sellers.filter(s => s.is_active).map(seller => (
+                                <option key={seller.id} value={seller.id}>{seller.name}</option>
+                              ))}
                             </select>
                           </div>
                           {!isReadOnly && (
