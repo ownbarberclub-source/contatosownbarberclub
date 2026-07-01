@@ -37,6 +37,7 @@ export default function App() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterBarberId, setFilterBarberId] = useState<string>('all');
   const [filterSellerId, setFilterSellerId] = useState<string>('all');
+  const [filterFidelimax, setFilterFidelimax] = useState<string>('all');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
 
@@ -765,7 +766,7 @@ export default function App() {
         return null;
       }
 
-      // 3. Filtragem por contatos (status e vendedor)
+      // 3. Filtragem por contatos (status, vendedor, fidelimax)
       const validContacts = record.contacts || [];
       const matchingContacts = validContacts.filter(contact => {
         if (filterStatus !== 'all') {
@@ -775,10 +776,14 @@ export default function App() {
         if (filterSellerId !== 'all' && contact.sellerId !== filterSellerId) {
           return false;
         }
+        if (filterFidelimax !== 'all') {
+          const fStatus = contact.fidelimaxStatus || 'pending';
+          if (fStatus !== filterFidelimax) return false;
+        }
         return true;
       });
 
-      if ((filterStatus !== 'all' || filterSellerId !== 'all') && matchingContacts.length === 0) {
+      if ((filterStatus !== 'all' || filterSellerId !== 'all' || filterFidelimax !== 'all') && matchingContacts.length === 0) {
         return null;
       }
 
@@ -787,7 +792,7 @@ export default function App() {
         contacts: matchingContacts
       };
     }).filter((r): r is ReferralRecord => r !== null);
-  }, [campaignFilteredRecords, filterStatus, filterBarberId, filterSellerId, filterStartDate, filterEndDate]);
+  }, [campaignFilteredRecords, filterStatus, filterBarberId, filterSellerId, filterFidelimax, filterStartDate, filterEndDate]);
 
   const clientGroups = useMemo(() => {
     const groups: Record<string, {
@@ -1116,7 +1121,7 @@ export default function App() {
               </div>
 
               {/* Filtros Avançados */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-xl">
                 
                 {/* Filtro Status */}
                 <div className="flex flex-col gap-1">
@@ -1165,6 +1170,21 @@ export default function App() {
                     {sellers.map(seller => (
                       <option key={seller.id} value={seller.id}>{seller.name}</option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Filtro Fidelimax */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Status Fidelimax</label>
+                  <select
+                    value={filterFidelimax}
+                    onChange={(e) => setFilterFidelimax(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-brand cursor-pointer h-9"
+                  >
+                    <option value="all">Todos os Status</option>
+                    <option value="pending">Pendente</option>
+                    <option value="launched">Lançado ✅</option>
+                    <option value="not_applicable">Não se aplica 🚫</option>
                   </select>
                 </div>
 
