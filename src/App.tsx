@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw, Copy, Check, Flag, X } from 'lucide-react';
 import Logo from './assets/logo.png';
-import { ReferralRecord, ContactPerson, User, Unit, Barber, Campaign, Seller } from './types';
+import { ReferralRecord, ContactPerson, User, Unit, Barber, Campaign, Seller, Plan } from './types';
 import { formatCPF, cleanCPF, cleanPhone } from './utils';
 import { RecordModal } from './components/RecordModal';
 import { BarbersTab } from './components/BarbersTab';
 import { UsersTab } from './components/UsersTab';
 import { DashboardTab } from './components/DashboardTab';
-import { SellersTab } from './components/SellersTab';
+import { ConfigTab } from './components/ConfigTab';
 import { exportToExcel, exportToPDF, exportGroupToPDF } from './exportUtils';
 import { supabase } from './supabaseClient';
 import { LeadEditModal } from './components/LeadEditModal';
@@ -19,9 +19,10 @@ export default function App() {
   const [debugMsg, setDebugMsg] = useState('');
   const [units, setUnits] = useState<Unit[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
-  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbeiros' | 'dashboard' | 'vendedores'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'users' | 'barbeiros' | 'dashboard' | 'configuracoes'>('leads');
   const [users, setUsers] = useState<User[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
 
   const [records, setRecords] = useState<ReferralRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,6 +191,13 @@ export default function App() {
       .select('*')
       .order('name', { ascending: true });
     if (sellersData) setSellers(sellersData);
+
+    // Carregar planos
+    const { data: plansData } = await supabase
+      .from('plans')
+      .select('*')
+      .order('name', { ascending: true });
+    if (plansData) setPlans(plansData);
   };
 
   // Realtime Sync Subscription - Reconfiguração Total
@@ -242,6 +250,18 @@ export default function App() {
         },
         () => {
           console.log("!!! MUDANÇA DETECTADA NO BANCO (sellers) !!!");
+          loadAppData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'plans'
+        },
+        () => {
+          console.log("!!! MUDANÇA DETECTADA NO BANCO (plans) !!!");
           loadAppData();
         }
       )
@@ -444,6 +464,24 @@ export default function App() {
     if (window.confirm('Tem certeza que deseja remover este vendedor?')) {
       setSellers(prev => prev.filter(s => s.id !== id));
       await supabase.from('sellers').delete().eq('id', id);
+    }
+  };
+
+  const handleAddPlan = async (name: string) => {
+    const newPlan = { id: crypto.randomUUID(), name, is_active: true };
+    setPlans(prev => [...prev, newPlan]);
+    await supabase.from('plans').insert([newPlan]);
+  };
+
+  const handleUpdatePlan = async (id: string, data: Partial<Plan>) => {
+    setPlans(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+    await supabase.from('plans').update(data).eq('id', id);
+  };
+
+  const handleRemovePlan = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover este plano?')) {
+      setPlans(prev => prev.filter(p => p.id !== id));
+      await supabase.from('plans').delete().eq('id', id);
     }
   };
 
@@ -1013,14 +1051,14 @@ export default function App() {
               )}
               {currentUser.isAdmin && (
                 <button
-                  onClick={() => setActiveTab('vendedores')}
+                  onClick={() => setActiveTab('configuracoes')}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'vendedores' 
+                    activeTab === 'configuracoes' 
                       ? 'bg-zinc-800 text-brand' 
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                   }`}
                 >
-                  Vendedores
+                  Configurações
                 </button>
               )}
             </nav>
@@ -1064,14 +1102,18 @@ export default function App() {
           />
                 ) : activeTab === 'dashboard' && currentUser.isAdmin ? (
           <DashboardTab records={campaignFilteredRecords} sellers={sellers} />
-        ) : activeTab === 'vendedores' && currentUser.isAdmin ? (
-          <SellersTab
+        ) : activeTab === 'configuracoes' && currentUser.isAdmin ? (
+          <ConfigTab
             sellers={sellers}
+            plans={plans}
             records={records}
             currentUser={currentUser}
             onAddSeller={handleAddSeller}
             onUpdateSeller={handleUpdateSeller}
             onRemoveSeller={handleRemoveSeller}
+            onAddPlan={handleAddPlan}
+            onUpdatePlan={handleUpdatePlan}
+            onRemovePlan={handleRemovePlan}
           />
         ) : (
           <>
@@ -1134,25 +1176,23 @@ export default function App() {
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => exportToPDF(filteredRecordsForList, sellers)}
+                      className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
+                      title="Exportar para PDF"
+                    >
+                      <FileText className="w-4 h-4 text-red-400" />
+                      <span className="hidden lg:inline">PDF</span>
+                    </button>
                     {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
-                      <>
-                        <button
-                          onClick={() => exportToPDF(filteredRecordsForList, sellers)}
-                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
-                          title="Exportar para PDF"
-                        >
-                          <FileText className="w-4 h-4 text-red-400" />
-                          <span className="hidden lg:inline">PDF</span>
-                        </button>
-                        <button
-                          onClick={() => exportToExcel(filteredRecordsForList, sellers)}
-                          className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
-                          title="Exportar para Excel"
-                        >
-                          <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                          <span className="hidden lg:inline">Excel</span>
-                        </button>
-                      </>
+                      <button
+                        onClick={() => exportToExcel(filteredRecordsForList, sellers)}
+                        className="flex items-center gap-2 bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors border border-zinc-700 cursor-pointer"
+                        title="Exportar para Excel"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                        <span className="hidden lg:inline">Excel</span>
+                      </button>
                     )}
                     <button
                       onClick={() => { loadAppData(); }}
@@ -1344,16 +1384,14 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {(currentUser.isAdmin || currentUser.permissions?.includes('export_data')) && (
-                      <button
-                        onClick={() => exportGroupToPDF(group.clientName, group.clientCpf, group.batches, sellers)}
-                        className="flex items-center gap-2 bg-zinc-800 text-zinc-300 hover:text-red-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700 cursor-pointer"
-                        title="Exportar Indicador para PDF"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span className="hidden sm:inline">Exportar PDF</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => exportGroupToPDF(group.clientName, group.clientCpf, group.batches, sellers)}
+                      className="flex items-center gap-2 bg-zinc-800 text-zinc-300 hover:text-red-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700 cursor-pointer"
+                      title="Exportar Indicador para PDF"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span className="hidden sm:inline">Exportar PDF</span>
+                    </button>
                     <button
                       onClick={() => openNewModalWithClient(group.clientCpf, group.clientName)}
                       className="flex items-center gap-2 bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
@@ -1444,30 +1482,49 @@ export default function App() {
                                </select>
                              </td>
                              <td className="px-6 py-3 whitespace-nowrap text-center">
-                               <select
-                                 disabled={isRecordReadOnly(batch)}
-                                 value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
-                                 onChange={(e) => updateContactData(batch.id, contact.id, { status: e.target.value as any })}
-                                 className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
-                                   contact.status === 'converted' || contact.subscriptionClosed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-                                   contact.status === 'no_response' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
-                                   contact.status === 'declined' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
-                                   contact.status === 'invalid_number' ? 'text-zinc-400 border-zinc-500/30 bg-zinc-500/10' :
-                                   contact.status === 'frequent' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' :
-                                   contact.status === 'scheduled' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' :
-                                   contact.status === 'contacted' || contact.called ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
-                                   'text-zinc-500 border-zinc-700'
-                                 }`}
-                               >
-                                 <option value="pending">Pendente</option>
-                                 <option value="contacted">Contatado</option>
-                                 <option value="no_response">Não Respondeu</option>
-                                 <option value="declined">Recusou</option>
-                                 <option value="invalid_number">Número não existe</option>
-                                 <option value="frequent">Frequente</option>
-                                 <option value="scheduled">Agendou 📅</option>
-                                 <option value="converted">Assinou ✅</option>
-                               </select>
+                               <div className="inline-flex items-center gap-1.5 justify-center">
+                                 <select
+                                   disabled={isRecordReadOnly(batch)}
+                                   value={contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending')}
+                                   onChange={(e) => updateContactData(batch.id, contact.id, { status: e.target.value as any })}
+                                   className={`text-xs font-bold rounded-md px-2 py-1 bg-zinc-800 border focus:outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
+                                     contact.status === 'converted' || contact.subscriptionClosed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                                     contact.status === 'no_response' ? 'text-orange-400 border-orange-500/30 bg-orange-500/10' :
+                                     contact.status === 'declined' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+                                     contact.status === 'invalid_number' ? 'text-zinc-400 border-zinc-500/30 bg-zinc-500/10' :
+                                     contact.status === 'frequent' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' :
+                                     contact.status === 'scheduled' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' :
+                                     contact.status === 'contacted' || contact.called ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
+                                     'text-zinc-500 border-zinc-700'
+                                   }`}
+                                 >
+                                   <option value="pending">Pendente</option>
+                                   <option value="contacted">Contatado</option>
+                                   <option value="no_response">Não Respondeu</option>
+                                   <option value="declined">Recusou</option>
+                                   <option value="invalid_number">Número não existe</option>
+                                   <option value="frequent">Frequente</option>
+                                   <option value="scheduled">Agendou 📅</option>
+                                   <option value="converted">Assinou ✅</option>
+                                 </select>
+
+                                 {(contact.status === 'converted' || contact.subscriptionClosed) && (
+                                   <select
+                                     disabled={isRecordReadOnly(batch)}
+                                     value={contact.planId || ''}
+                                     onChange={(e) => updateContactData(batch.id, contact.id, { planId: e.target.value })}
+                                     className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-350 focus:outline-none focus:border-brand cursor-pointer h-7"
+                                     title="Selecionar Plano"
+                                   >
+                                     <option value="">Plano...</option>
+                                     {plans.filter(p => p.is_active || p.id === contact.planId).map(plan => (
+                                       <option key={plan.id} value={plan.id} className="bg-zinc-900 text-zinc-100">
+                                         {plan.name}
+                                       </option>
+                                     ))}
+                                   </select>
+                                 )}
+                               </div>
                              </td>
                              <td className="px-6 py-3 whitespace-nowrap text-center">
                                <select
@@ -1552,6 +1609,7 @@ export default function App() {
         currentBarberId={editingLeadRecord?.barberId || ''}
         barbers={barbers}
         sellers={sellers}
+        plans={plans}
         isReadOnly={isRecordReadOnly(editingLeadRecord)}
       />
 

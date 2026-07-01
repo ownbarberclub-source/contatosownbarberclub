@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Phone, Scissors, ShieldAlert, BadgeCheck, FileText, CalendarDays, CreditCard } from 'lucide-react';
-import { ContactPerson, Barber, Seller } from '../types';
+import { X, User, Phone, Scissors, ShieldAlert, BadgeCheck, FileText, CalendarDays, CreditCard, Settings } from 'lucide-react';
+import { ContactPerson, Barber, Seller, Plan } from '../types';
 
 interface LeadEditModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface LeadEditModalProps {
   currentBarberId: string;
   barbers: Barber[];
   sellers: Seller[];
+  plans: Plan[];
   isReadOnly: boolean;
 }
 
@@ -25,6 +26,7 @@ export function LeadEditModal({
   currentBarberId,
   barbers,
   sellers,
+  plans,
   isReadOnly
 }: LeadEditModalProps) {
   const [name, setName] = useState('');
@@ -33,6 +35,7 @@ export function LeadEditModal({
   const [fidelimaxStatus, setFidelimaxStatus] = useState<any>('pending');
   const [sellerId, setSellerId] = useState('');
   const [barberId, setBarberId] = useState('');
+  const [planId, setPlanId] = useState('');
   const [notes, setNotes] = useState('');
   const [activationDate, setActivationDate] = useState('');
   const [cardNumber, setCardNumber] = useState('');
@@ -46,6 +49,7 @@ export function LeadEditModal({
       setFidelimaxStatus(contact.fidelimaxStatus || 'pending');
       setSellerId(contact.sellerId || '');
       setBarberId(currentBarberId);
+      setPlanId(contact.planId || '');
       setNotes(contact.notes || '');
       setActivationDate(contact.activationDate || '');
       setCardNumber(contact.cardNumber || '');
@@ -63,6 +67,7 @@ export function LeadEditModal({
     } else {
       setActivationDate('');
       setCardNumber('');
+      setPlanId('');
     }
   };
 
@@ -104,6 +109,7 @@ export function LeadEditModal({
         status,
         fidelimaxStatus,
         sellerId: sellerId || undefined,
+        planId: isConverted ? (planId || undefined) : undefined,
         notes: notes.trim() || undefined,
         subscriptionClosed: isConverted,
         called: isCalled,
@@ -275,8 +281,27 @@ export function LeadEditModal({
 
           {/* Dados de Assinatura (Condicional para Converted) */}
           {(status === 'converted') && (
-            <div className="p-4 bg-zinc-950/40 border border-zinc-800/80 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-4 duration-200">
+            <div className="p-4 bg-zinc-950/40 border border-zinc-800/80 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-4 duration-200">
               
+              {/* Plano Contratado */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-400">Plano Contratado</label>
+                <div className="relative">
+                  <select
+                    disabled={isReadOnly}
+                    value={planId}
+                    onChange={(e) => setPlanId(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-zinc-200 focus:outline-none focus:border-brand cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">Selecione Plano...</option>
+                    {plans.filter(p => p.is_active || p.id === planId).map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <Settings className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+                </div>
+              </div>
+
               {/* Data Ativação */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-zinc-400">Data de Ativação</label>

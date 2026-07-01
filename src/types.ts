@@ -11,9 +11,17 @@ export interface ContactPerson {
   cardNumber?: string;
   fidelimaxStatus?: 'pending' | 'launched' | 'not_applicable';
   sellerId?: string; // ID do vendedor responsável
+  planId?: string;   // ID do plano contratado
 }
 
 export interface Seller {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface Plan {
   id: string;
   name: string;
   is_active: boolean;
