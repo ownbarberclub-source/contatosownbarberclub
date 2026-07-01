@@ -1330,7 +1330,6 @@ export default function App() {
                         <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Vendedor</th>
                         <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status ROI</th>
                         <th className="px-6 py-3 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status Fidelimax</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Notas / Observações</th>
                         <th className="px-6 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Ações</th>
                       </tr>
                     </thead>
@@ -1456,19 +1455,9 @@ export default function App() {
                                  <option value="pending">Pendente</option>
                                  <option value="launched">Lançado ✅</option>
                                  <option value="not_applicable">Não se aplica 🚫</option>
-                               </select>
+                                </select>
                              </td>
-                            <td className="px-6 py-3">
-                              <input 
-                                disabled={isRecordReadOnly(batch)}
-                                type="text"
-                                placeholder="Adicionar nota..."
-                                value={contact.notes || ''}
-                                onChange={(e) => updateContactData(batch.id, contact.id, { notes: e.target.value })}
-                                className="w-full bg-transparent border-none text-xs text-zinc-400 focus:text-zinc-200 focus:outline-none placeholder-zinc-700 disabled:text-zinc-600"
-                              />
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+                             <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                               <button
                                 onClick={() => openEditModal(batch)}
                                 className="text-zinc-500 hover:text-brand transition-colors p-1"
@@ -1491,7 +1480,7 @@ export default function App() {
                       )}
                       {group.batches.every(b => !b.contacts || b.contacts.length === 0) && (
                         <tr>
-                          <td colSpan={8} className="px-6 py-8 text-center text-sm text-zinc-500">
+                          <td colSpan={7} className="px-6 py-8 text-center text-sm text-zinc-500">
                             Nenhum lead registrado para este cliente.
                           </td>
                         </tr>
