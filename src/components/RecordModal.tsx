@@ -169,6 +169,7 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
         } else {
           updates.activationDate = undefined;
           updates.cardNumber = undefined;
+          updates.fidelimaxStatus = 'pending';
         }
         return { ...c, ...updates };
       }
@@ -390,19 +391,21 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
                           </div>
 
                           {/* Fidelimax select */}
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider font-mono">Fidelimax:</span>
-                            <select
-                              disabled={isReadOnly}
-                              value={contact.fidelimaxStatus || 'pending'}
-                              onChange={(e) => updateContactField(contact.id, 'fidelimaxStatus', e.target.value)}
-                              className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-brand cursor-pointer"
-                            >
-                              <option value="pending">Pendente</option>
-                              <option value="launched">Lançado ✅</option>
-                              <option value="not_applicable">N/A 🚫</option>
-                            </select>
-                          </div>
+                          {(contact.status === 'converted' || contact.subscriptionClosed) && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider font-mono">Fidelimax:</span>
+                              <select
+                                disabled={isReadOnly}
+                                value={contact.fidelimaxStatus || 'pending'}
+                                onChange={(e) => updateContactField(contact.id, 'fidelimaxStatus', e.target.value)}
+                                className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-brand cursor-pointer"
+                              >
+                                <option value="pending">Pendente</option>
+                                <option value="launched">Lançado ✅</option>
+                                <option value="not_applicable">N/A 🚫</option>
+                              </select>
+                            </div>
+                          )}
 
                           {/* Seller select */}
                           <div className="flex items-center gap-1">

@@ -108,7 +108,7 @@ export function LeadEditModal({
         name: name.trim(),
         phone: phone.trim(),
         status,
-        fidelimaxStatus,
+        fidelimaxStatus: isConverted ? fidelimaxStatus : 'pending',
         sellerId: sellerId || undefined,
         planId: isConverted ? (planId || undefined) : undefined,
         notes: notes.trim() || undefined,
@@ -263,22 +263,24 @@ export function LeadEditModal({
             </div>
 
             {/* Status Fidelimax */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-400">Status Fidelimax</label>
-              <div className="relative">
-                <select
-                  disabled={isReadOnly}
-                  value={fidelimaxStatus}
-                  onChange={(e) => setFidelimaxStatus(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-200 focus:outline-none focus:border-brand cursor-pointer disabled:opacity-50"
-                >
-                  <option value="pending">Pendente</option>
-                  <option value="launched">Lançado ✅</option>
-                  <option value="not_applicable">Não se aplica 🚫</option>
-                </select>
-                <ShieldAlert className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+            {(status === 'converted') && (
+              <div className="space-y-1.5 animate-in slide-in-from-top-4 duration-200">
+                <label className="block text-xs font-semibold text-zinc-400">Status Fidelimax</label>
+                <div className="relative">
+                  <select
+                    disabled={isReadOnly}
+                    value={fidelimaxStatus}
+                    onChange={(e) => setFidelimaxStatus(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-200 focus:outline-none focus:border-brand cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="pending">Pendente</option>
+                    <option value="launched">Lançado ✅</option>
+                    <option value="not_applicable">Não se aplica 🚫</option>
+                  </select>
+                  <ShieldAlert className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
 
