@@ -46,8 +46,9 @@ export function LeadEditModal({
     if (contact) {
       setName(contact.name);
       setPhone(contact.phone);
-      setStatus(contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending'));
-      setFidelimaxStatus(contact.fidelimaxStatus || 'pending');
+      const initialStatus = contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending');
+      setStatus(initialStatus);
+      setFidelimaxStatus(contact.fidelimaxStatus || (initialStatus === 'converted' ? 'pending' : 'not_applicable'));
       setSellerId(contact.sellerId || '');
       setBarberId(currentBarberId);
       setPlanId(contact.planId || '');
@@ -65,10 +66,14 @@ export function LeadEditModal({
       if (!activationDate) {
         setActivationDate(new Date().toISOString().split('T')[0]);
       }
+      if (fidelimaxStatus === 'not_applicable') {
+        setFidelimaxStatus('pending');
+      }
     } else {
       setActivationDate('');
       setCardNumber('');
       setPlanId('');
+      setFidelimaxStatus('not_applicable');
     }
   };
 
@@ -108,7 +113,7 @@ export function LeadEditModal({
         name: name.trim(),
         phone: phone.trim(),
         status,
-        fidelimaxStatus: isConverted ? fidelimaxStatus : 'pending',
+        fidelimaxStatus: isConverted ? fidelimaxStatus : 'not_applicable',
         sellerId: sellerId || undefined,
         planId: isConverted ? (planId || undefined) : undefined,
         notes: notes.trim() || undefined,

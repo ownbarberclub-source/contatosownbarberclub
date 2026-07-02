@@ -119,6 +119,8 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
       phone: newContactPhone.trim(),
       subscriptionClosed: false,
       called: false,
+      status: 'pending',
+      fidelimaxStatus: 'not_applicable',
     };
 
     // ── Save-imediato: se estiver editando um registro existente, salva no banco agora ──
@@ -166,10 +168,13 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
           if (!c.activationDate) {
             updates.activationDate = new Date().toISOString().split('T')[0];
           }
+          if (c.fidelimaxStatus === 'not_applicable' || !c.fidelimaxStatus) {
+            updates.fidelimaxStatus = 'pending';
+          }
         } else {
           updates.activationDate = undefined;
           updates.cardNumber = undefined;
-          updates.fidelimaxStatus = 'pending';
+          updates.fidelimaxStatus = 'not_applicable';
         }
         return { ...c, ...updates };
       }
