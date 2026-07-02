@@ -781,6 +781,34 @@ export default function App() {
     }
   };
 
+  const handleDeleteContact = async (batchId: string, contactId: string) => {
+    const record = records.find(r => r.id === batchId);
+    if (record && isRecordReadOnly(record)) {
+      alert("Este lote pertence a uma campanha encerrada e não pode ser editado.");
+      return;
+    }
+
+    if (window.confirm('Tem certeza que deseja excluir este lead?')) {
+      const updatedContacts = (record?.contacts || []).filter(c => c.id !== contactId);
+      
+      // Atualiza estado local
+      setRecords(records.map(r => r.id === batchId ? { ...r, contacts: updatedContacts } : r));
+
+      try {
+        const { error } = await supabase
+          .from('referral_records')
+          .update({ contacts: updatedContacts })
+          .eq('id', batchId);
+
+        if (error) throw error;
+      } catch (err) {
+        console.error("Erro ao excluir lead:", err);
+        alert("Erro ao excluir lead do servidor. Tente novamente.");
+        loadAppData();
+      }
+    }
+  };
+
   const handleDeleteClient = async (cpf: string, name: string) => {
     const clientBatches = records.filter(r => cleanCPF(r.clientCpf) === cleanCPF(cpf));
     const hasReadOnlyBatch = clientBatches.some(b => isRecordReadOnly(b));
@@ -1568,9 +1596,9 @@ export default function App() {
                               </button>
                               {(currentUser.isAdmin || currentUser.permissions?.includes('delete_records')) && !isRecordReadOnly(batch) && (
                                 <button
-                                  onClick={() => handleDelete(batch.id)}
+                                  onClick={() => handleDeleteContact(batch.id, contact.id)}
                                   className="text-zinc-500 hover:text-red-500 transition-colors p-1 ml-2"
-                                  title="Excluir Lote"
+                                  title="Excluir Lead"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
