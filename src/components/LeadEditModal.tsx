@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Phone, Scissors, ShieldAlert, BadgeCheck, FileText, CalendarDays, CreditCard, Settings } from 'lucide-react';
-import { ContactPerson, Barber, Seller, Plan } from '../types';
+import { ReferralRecord, ContactPerson, Barber, Seller, Plan } from '../types';
 import { detectIdentifierType } from '../utils';
 
 interface LeadEditModalProps {
@@ -15,6 +15,8 @@ interface LeadEditModalProps {
   sellers: Seller[];
   plans: Plan[];
   isReadOnly: boolean;
+  records: ReferralRecord[];
+  campaignId?: string;
 }
 
 export function LeadEditModal({
@@ -28,7 +30,9 @@ export function LeadEditModal({
   barbers,
   sellers,
   plans,
-  isReadOnly
+  isReadOnly,
+  records,
+  campaignId,
 }: LeadEditModalProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -107,6 +111,20 @@ export function LeadEditModal({
     try {
       const isConverted = status === 'converted';
       const isCalled = status !== 'pending';
+
+      const cleanedNewPhone = phone.replace(/\D/g, '');
+      const otherRecords = records;
+      const sameCampaignRecords = otherRecords.filter(r => r.campaign_id === campaignId);
+
+      const isDuplicate = sameCampaignRecords.some(r =>
+        r.contacts?.some(c => c.id !== contact?.id && c.phone.replace(/\D/g, '') === cleanedNewPhone)
+      );
+
+      if (isDuplicate) {
+        alert('Este número de telefone já está cadastrado como lead nesta campanha.');
+        setSaving(false);
+        return;
+      }
 
       const updatedContact: ContactPerson = {
         ...contact,

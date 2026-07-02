@@ -1594,7 +1594,7 @@ export default function App() {
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
-                              {(currentUser.isAdmin || currentUser.permissions?.includes('delete_records')) && !isRecordReadOnly(batch) && (
+                              {!isRecordReadOnly(batch) && (
                                 <button
                                   onClick={() => handleDeleteContact(batch.id, contact.id)}
                                   className="text-zinc-500 hover:text-red-500 transition-colors p-1 ml-2"
@@ -1651,6 +1651,8 @@ export default function App() {
         sellers={sellers}
         plans={plans}
         isReadOnly={isRecordReadOnly(editingLeadRecord)}
+        records={records}
+        campaignId={editingLeadRecord?.campaign_id}
       />
 
       {/* Campaign Manager Modal */}
