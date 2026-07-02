@@ -642,12 +642,16 @@ export default function App() {
                 if (!updatedContact.activationDate) {
                   updatedContact.activationDate = new Date().toISOString().split('T')[0];
                 }
+                if (updatedContact.fidelimaxStatus === 'not_applicable' || !updatedContact.fidelimaxStatus) {
+                  updatedContact.fidelimaxStatus = 'pending';
+                }
               } else if (updates.status === 'pending') {
                 updatedContact.subscriptionClosed = false;
                 updatedContact.called = false;
                 updatedContact.calledAt = undefined;
                 updatedContact.activationDate = undefined;
                 updatedContact.cardNumber = undefined;
+                updatedContact.fidelimaxStatus = 'not_applicable';
               } else {
                 // contacted, no_response, declined, etc.
                 updatedContact.subscriptionClosed = false;
@@ -656,6 +660,7 @@ export default function App() {
                 if (!updatedContact.calledAt) updatedContact.calledAt = `${selectedDate}T${timeString}`;
                 updatedContact.activationDate = undefined;
                 updatedContact.cardNumber = undefined;
+                updatedContact.fidelimaxStatus = 'not_applicable';
               }
             }
             
