@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Users, UserPlus, CheckCircle2, Edit2, Trash2, Scissors, MessageCircle, PhoneCall, CalendarDays, Circle, PhoneForwarded, LogOut, FileText, FileSpreadsheet, Lock, AlertTriangle, TrendingUp, RefreshCw, Copy, Check, Flag, X } from 'lucide-react';
 import Logo from './assets/logo.png';
 import { ReferralRecord, ContactPerson, User, Unit, Barber, Campaign, Seller, Plan } from './types';
-import { formatCPF, cleanCPF, cleanPhone } from './utils';
+import { formatCPF, cleanCPF, cleanPhone, detectIdentifierType } from './utils';
 import { RecordModal } from './components/RecordModal';
 import { BarbersTab } from './components/BarbersTab';
 import { UsersTab } from './components/UsersTab';
@@ -1170,7 +1170,7 @@ export default function App() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Buscar por nome, barbeiro ou CPF..."
+                      placeholder="Buscar por nome, barbeiro, CPF ou celular..."
                       className="block w-full pl-10 pr-3 py-2.5 border border-zinc-800 rounded-xl leading-5 bg-zinc-900 text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all sm:text-sm"
                     />
                   </div>
@@ -1373,7 +1373,9 @@ export default function App() {
                       {group.clientName}
                     </h3>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 text-xs text-zinc-400">
-                      <span className="font-mono">CPF: {group.clientCpf}</span>
+                      <span className="font-mono">
+                        {detectIdentifierType(group.clientCpf) === 'cpf' ? 'CPF' : 'Celular'}: {group.clientCpf}
+                      </span>
                       <span className="hidden sm:inline text-zinc-700">•</span>
                       <span className="flex items-center gap-1 bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-md border border-blue-500/20 font-medium">
                         Leads Inseridos: {group.batches.reduce((acc, b) => acc + (b.contacts?.length || 0), 0)}

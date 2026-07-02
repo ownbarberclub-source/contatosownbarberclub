@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Phone, Scissors, ShieldAlert, BadgeCheck, FileText, CalendarDays, CreditCard, Settings } from 'lucide-react';
 import { ContactPerson, Barber, Seller, Plan } from '../types';
+import { detectIdentifierType } from '../utils';
 
 interface LeadEditModalProps {
   isOpen: boolean;
@@ -159,7 +160,9 @@ export function LeadEditModal({
               <span className="text-sm font-semibold text-zinc-200 block">{clientName}</span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 font-mono block">CPF do Indicador</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 font-mono block">
+                {detectIdentifierType(clientCpf) === 'cpf' ? 'CPF do Indicador' : 'Celular do Indicador'}
+              </span>
               <span className="text-xs text-zinc-400 font-mono block">{clientCpf}</span>
             </div>
           </div>

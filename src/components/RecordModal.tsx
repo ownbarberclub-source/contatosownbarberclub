@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { ReferralRecord, ContactPerson, Barber, Seller } from '../types';
-import { formatCPF, formatPhone, cleanCPF, cleanPhone } from '../utils';
+import { formatCPF, formatPhone, cleanCPF, cleanPhone, detectIdentifierType } from '../utils';
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ interface RecordModalProps {
 export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData, isReadOnly = false, records, barbers, preFilledClient, activeCampaignId, sellers }: RecordModalProps) {
   const [clientName, setClientName] = useState('');
   const [clientCpf, setClientCpf] = useState('');
+  const [identifierType, setIdentifierType] = useState<'cpf' | 'phone'>('cpf');
   const [barberId, setBarberId] = useState('');
   const [contacts, setContacts] = useState<ContactPerson[]>([]);
   const [newContactName, setNewContactName] = useState('');
@@ -38,11 +39,13 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
     if (initialData) {
       setClientName(initialData.clientName);
       setClientCpf(initialData.clientCpf);
+      setIdentifierType(detectIdentifierType(initialData.clientCpf));
       setBarberId(initialData.barberId || '');
       setContacts(initialData.contacts || []);
     } else if (preFilledClient) {
       setClientCpf(preFilledClient.cpf);
       setClientName(preFilledClient.name);
+      setIdentifierType(detectIdentifierType(preFilledClient.cpf));
       setBarberId('');
       setContacts([]);
       setNewContactName('');
@@ -50,6 +53,7 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
     } else {
       setClientName('');
       setClientCpf('');
+      setIdentifierType('cpf');
       setBarberId('');
       setContacts([]);
       setNewContactName('');
@@ -69,11 +73,11 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
     if (!initialData) barberLookupDone.current = false;
   }, [initialData?.id, barbers]);
 
-  // Auto-fill when typing CPF
+  // Auto-fill when typing CPF or Phone
   useEffect(() => {
     if (!initialData && !preFilledClient && clientCpf) {
       const cleanInput = cleanCPF(clientCpf);
-      if (cleanInput.length === 11) {
+      if (cleanInput.length >= 10 && cleanInput.length <= 11) {
         const existing = records.find(r => cleanCPF(r.clientCpf) === cleanInput);
         if (existing) {
           setClientName(existing.clientName);
@@ -240,18 +244,59 @@ export function RecordModal({ isOpen, onClose, onSave, onAddContact, initialData
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                CPF do Cliente
-              </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-sm font-medium text-zinc-300">
+                  Documento / Contato do Cliente
+                </label>
+                <div className="flex bg-zinc-950 p-0.5 rounded-lg border border-zinc-800">
+                  <button
+                    type="button"
+                    disabled={isReadOnly}
+                    onClick={() => {
+                      setIdentifierType('cpf');
+                      setClientCpf(formatCPF(clientCpf));
+                    }}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      identifierType === 'cpf'
+                        ? 'bg-zinc-800 text-zinc-100 shadow'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    CPF
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isReadOnly}
+                    onClick={() => {
+                      setIdentifierType('phone');
+                      setClientCpf(formatPhone(clientCpf));
+                    }}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      identifierType === 'phone'
+                        ? 'bg-zinc-800 text-zinc-100 shadow'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    Celular
+                  </button>
+                </div>
+              </div>
               <input
                 disabled={isReadOnly}
                 type="text"
                 required
                 value={clientCpf}
-                onChange={(e) => setClientCpf(formatCPF(e.target.value))}
-                maxLength={14}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (identifierType === 'cpf') {
+                    setClientCpf(formatCPF(val));
+                  } else {
+                    setClientCpf(formatPhone(val));
+                  }
+                }}
+                maxLength={identifierType === 'cpf' ? 14 : 15}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="000.000.000-00"
+                placeholder={identifierType === 'cpf' ? "000.000.000-00" : "(00) 00000-0000"}
               />
             </div>
 

@@ -22,3 +22,18 @@ export const formatPhone = (value: string) => {
 export const cleanPhone = (value: string) => {
   return value.replace(/\D/g, '');
 };
+
+export const detectIdentifierType = (value: string): 'cpf' | 'phone' => {
+  const clean = value.replace(/\D/g, '');
+  if (clean.length === 10) return 'phone';
+  if (clean.length === 11) {
+    const ddd = parseInt(clean.substring(0, 2), 10);
+    const isDDD = ddd >= 11 && ddd <= 99;
+    const isMobile = clean.charAt(2) === '9';
+    if (isDDD && isMobile) {
+      return 'phone';
+    }
+  }
+  return 'cpf';
+};
+

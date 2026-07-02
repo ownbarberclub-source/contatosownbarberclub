@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ReferralRecord, Seller, Plan } from './types';
+import { detectIdentifierType } from './utils';
 
 // Helper to format ROI status in PT-BR
 const formatROIStatus = (status?: string, subscriptionClosed?: boolean, called?: boolean): string => {
@@ -34,7 +35,7 @@ export const exportToExcel = (records: ReferralRecord[], sellers: Seller[]) => {
       const seller = sellers.find(s => s.id === contact.sellerId);
       return {
         'Indicador': record.clientName,
-        'CPF Indicador': record.clientCpf,
+        'CPF/Celular Indicador': record.clientCpf,
         'Lead': contact.name,
         'Telefone': contact.phone,
         'Barbeiro': record.barberName,
@@ -121,7 +122,8 @@ export const exportGroupToPDF = (clientName: string, clientCpf: string, batches:
   doc.text("Indicador (Lead Mestre):", 14, 33);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`${clientName} (CPF: ${clientCpf})`, 14, 38);
+  const label = detectIdentifierType(clientCpf) === 'cpf' ? 'CPF' : 'Celular';
+  doc.text(`${clientName} (${label}: ${clientCpf})`, 14, 38);
 
   const tableData = batches.flatMap(batch => 
     (batch.contacts || []).map(contact => {
@@ -178,7 +180,8 @@ export const exportGroupToPDFAdmin = (clientName: string, clientCpf: string, bat
   doc.text("Indicador (Lead Mestre):", 14, 33);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`${clientName} (CPF: ${clientCpf})`, 14, 38);
+  const label = detectIdentifierType(clientCpf) === 'cpf' ? 'CPF' : 'Celular';
+  doc.text(`${clientName} (${label}: ${clientCpf})`, 14, 38);
 
   const tableData = batches.flatMap(batch => 
     (batch.contacts || []).map(contact => {
