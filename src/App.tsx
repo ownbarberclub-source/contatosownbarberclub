@@ -945,12 +945,15 @@ export default function App() {
     const cleanQuery = cleanCPF(searchQuery);
     
     return clientGroups.filter(group => {
-      const matchName = group.clientName.toLowerCase().includes(query);
-      const matchCpf = cleanQuery.length > 0 && cleanCPF(group.clientCpf).includes(cleanQuery);
-      const matchBarber = group.batches.some(b => b.barberName.toLowerCase().includes(query));
-      const matchLead = group.batches.some(b => b.contacts?.some(c => c.name.toLowerCase().includes(query) || cleanPhone(c.phone).includes(cleanQuery)));
+      const matchName = group.clientName?.toLowerCase().includes(query);
+      const matchCpf = cleanQuery.length > 0 && group.clientCpf && cleanCPF(group.clientCpf).includes(cleanQuery);
+      const matchBarber = group.batches.some(b => b.barberName?.toLowerCase().includes(query));
+      const matchLead = group.batches.some(b => b.contacts?.some(c => 
+        (c.name && c.name.toLowerCase().includes(query)) || 
+        (cleanQuery.length > 0 && c.phone && cleanPhone(c.phone).includes(cleanQuery))
+      ));
       
-      return matchName || matchCpf || matchBarber || matchLead;
+      return !!(matchName || matchCpf || matchBarber || matchLead);
     });
   }, [clientGroups, searchQuery]);
 
