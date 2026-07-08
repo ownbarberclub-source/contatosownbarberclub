@@ -969,10 +969,16 @@ export default function App() {
       c.calledAt?.split('T')[0] === selectedDate
     ).length;
 
+    const closedToday = allContacts.filter(c => 
+      (c.status === 'converted' || c.subscriptionClosed) && 
+      c.activationDate === selectedDate
+    ).length;
+
     return {
       totalClients: new Set(filteredRecordsForList.map(r => cleanCPF(r.clientCpf))).size,
       totalLeads: allContacts.length,
       closedSubscriptions: converted,
+      closedToday,
       leadsToCall: allContacts.filter(c => !c.status || c.status === 'pending').length,
       calledToday,
       conversionRate: allContacts.length > 0 ? Math.round((converted / allContacts.length) * 100) : 0,
@@ -1340,7 +1346,7 @@ export default function App() {
 
               </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-zinc-400">
                 <Users className="w-4 h-4" />
@@ -1361,6 +1367,13 @@ export default function App() {
                 <p className="text-xs font-medium uppercase tracking-wider">Assinaturas Fechadas</p>
               </div>
               <p className="text-2xl font-bold text-brand">{stats.closedSubscriptions}</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2 border-emerald-500/10">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <p className="text-xs font-medium uppercase tracking-wider">Fechadas Hoje</p>
+              </div>
+              <p className="text-2xl font-bold text-emerald-400">{stats.closedToday}</p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2 text-blue-400">
