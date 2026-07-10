@@ -97,10 +97,25 @@ export default function App() {
             setDebugMsg(prev => prev + ` | Profile: ${profileByToken ? `found is_active=${profileByToken.is_active} role=${profileByToken.role}` : `null err=${profErr?.message}`}`);
 
             if (profileByToken && profileByToken.is_active !== false) {
+              const { data: userPerms } = await supabase
+                .from('hub_permissions')
+                .select('*')
+                .eq('user_id', profileByToken.id);
+
+              const isUserAdmin = profileByToken.role === 'admin' || userPerms?.some((p: any) => p.role === 'administrador' || p.role === 'admin');
+
               const url = new URL(window.location.href);
               ['hub_user','hub_pass','hub_role','hub_token','hub_name'].forEach(p => url.searchParams.delete(p));
               window.history.replaceState({}, '', url.toString());
-              setCurrentUser({ id: profileByToken.id, name: profileByToken.name || hubUser.split('@')[0], email: hubUser, password: '', isAdmin: profileByToken.role === 'admin', permissions: profileByToken.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [] });
+              setCurrentUser({
+                id: profileByToken.id,
+                name: profileByToken.name || hubUser.split('@')[0],
+                email: hubUser,
+                password: '',
+                isAdmin: !!isUserAdmin,
+                role: isUserAdmin ? 'admin' : 'operator',
+                permissions: isUserAdmin ? ['view_ranking', 'export_data', 'delete_records'] : []
+              });
               setHubLoading(false);
               loadAppData();
               return;
@@ -132,11 +147,26 @@ export default function App() {
         return;
       }
 
+      const { data: userPerms } = await supabase
+        .from('hub_permissions')
+        .select('*')
+        .eq('user_id', session.user.id);
+
+      const isUserAdmin = profile.role === 'admin' || userPerms?.some((p: any) => p.role === 'administrador' || p.role === 'admin');
+
       const url = new URL(window.location.href);
       ['hub_user','hub_pass','hub_role','hub_token','hub_name'].forEach(p => url.searchParams.delete(p));
       window.history.replaceState({}, '', url.toString());
 
-      setCurrentUser({ id: session.user.id, name: profile.name || session.user.email?.split('@')[0] || 'Usuário', email: session.user.email || '', password: '', isAdmin: profile.role === 'admin', permissions: profile.role === 'admin' ? ['view_ranking', 'export_data', 'delete_records'] : [] });
+      setCurrentUser({
+        id: session.user.id,
+        name: profile.name || session.user.email?.split('@')[0] || 'Usuário',
+        email: session.user.email || '',
+        password: '',
+        isAdmin: !!isUserAdmin,
+        role: isUserAdmin ? 'admin' : 'operator',
+        permissions: isUserAdmin ? ['view_ranking', 'export_data', 'delete_records'] : []
+      });
       setHubLoading(false);
       loadAppData();
     };

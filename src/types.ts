@@ -54,6 +54,7 @@ export interface User {
   email: string;
   password?: string;
   isAdmin: boolean;
+  role?: string;
   permissions?: string[];
 }
 
