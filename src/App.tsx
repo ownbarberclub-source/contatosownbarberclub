@@ -979,7 +979,10 @@ export default function App() {
     return clientGroups.filter(group => {
       const matchName = group.clientName?.toLowerCase().includes(query);
       const matchCpf = cleanQuery.length > 0 && group.clientCpf && cleanCPF(group.clientCpf).includes(cleanQuery);
-      const matchBarber = group.batches.some(b => b.barberName?.toLowerCase().includes(query));
+      const matchBarber = group.batches.some(b => 
+        (b.barberName && b.barberName.toLowerCase().includes(query)) ||
+        b.contacts?.some(c => c.barberName && c.barberName.toLowerCase().includes(query))
+      );
       const matchLead = group.batches.some(b => b.contacts?.some(c => 
         (c.name && c.name.toLowerCase().includes(query)) || 
         (cleanQuery.length > 0 && c.phone && cleanPhone(c.phone).includes(cleanQuery))

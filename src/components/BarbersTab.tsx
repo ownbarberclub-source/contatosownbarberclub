@@ -100,17 +100,24 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
     const ranking = barbers.map(barber => {
       const unit = units.find(u => u.id === barber.unit_id);
       
-      // Get all records for this barber in this month/year
-      const barberRecords = monthRecords.filter(r => r.barberId === barber.id || r.barberName === barber.name);
-      
-      // Sum closed subscriptions
+      // Sum closed subscriptions and total leads based on contact-level barber
       let closedSubscriptions = 0;
       let totalLeads = 0;
 
-      barberRecords.forEach(record => {
+      monthRecords.forEach(record => {
         if (record.contacts) {
-          totalLeads += record.contacts.length;
-          closedSubscriptions += record.contacts.filter(c => c.subscriptionClosed).length;
+          record.contacts.forEach(c => {
+            const cBarberId = c.barberId || record.barberId;
+            const cBarberName = c.barberName || record.barberName;
+
+            const matchesBarber = cBarberId === barber.id || cBarberName === barber.name;
+            if (matchesBarber) {
+              totalLeads++;
+              if (c.status === 'converted' || c.subscriptionClosed) {
+                closedSubscriptions++;
+              }
+            }
+          });
         }
       });
 

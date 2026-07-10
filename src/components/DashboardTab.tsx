@@ -79,26 +79,31 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
     });
 
     filteredRecords.forEach(record => {
-      const bName = record.barberName || 'Desconhecido';
       const rName = record.createdByName || 'Sistema';
 
-      if (!barberPerformance[bName]) barberPerformance[bName] = { leads: 0, conversions: 0, noResponse: 0 };
       if (!receptionistPerformance[rName]) receptionistPerformance[rName] = { created: 0, conversions: 0 };
 
       const validContacts = record.contacts || [];
       const loteSize = validContacts.length;
 
       totalLeads += loteSize;
-      barberPerformance[bName].leads += loteSize;
       receptionistPerformance[rName].created += loteSize;
 
       validContacts.forEach(contact => {
+        const contactBarberName = contact.barberName || record.barberName || 'Desconhecido';
+        
+        if (!barberPerformance[contactBarberName]) {
+          barberPerformance[contactBarberName] = { leads: 0, conversions: 0, noResponse: 0 };
+        }
+        
+        barberPerformance[contactBarberName].leads++;
+
         if (contact.status && contact.status !== 'pending') {
           contactedLeads++;
         }
         if (contact.status === 'no_response') {
           noResponseLeads++;
-          barberPerformance[bName].noResponse++;
+          barberPerformance[contactBarberName].noResponse++;
         }
         if (contact.status === 'invalid_number') {
           invalidNumberLeads++;
@@ -130,7 +135,7 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
 
         if (isConverted) {
           convertedLeads++;
-          barberPerformance[bName].conversions++;
+          barberPerformance[contactBarberName].conversions++;
           receptionistPerformance[rName].conversions++;
           if (contact.sellerId) {
             sellerPerformance[contact.sellerId].conversions++;
