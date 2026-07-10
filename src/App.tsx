@@ -726,16 +726,21 @@ export default function App() {
     const contactId = editingLead.id;
 
     const selectedBarber = barbers.find(b => b.id === newBarberId);
-    const barberName = selectedBarber?.name || editingLeadRecord.barberName;
+    const barberName = selectedBarber?.name || '';
+
+    // Add barber details directly to the contact object
+    const finalContact: ContactPerson = {
+      ...updatedContact,
+      barberId: newBarberId,
+      barberName
+    };
 
     // Atualiza estado local
     setRecords(prev => prev.map(rec => {
       if (rec.id !== recordId) return rec;
       return {
         ...rec,
-        barberId: newBarberId,
-        barberName,
-        contacts: rec.contacts.map(c => c.id === contactId ? updatedContact : c)
+        contacts: rec.contacts.map(c => c.id === contactId ? finalContact : c)
       };
     }));
 
@@ -743,12 +748,10 @@ export default function App() {
     try {
       const record = records.find(r => r.id === recordId);
       if (record) {
-        const updatedContacts = record.contacts.map(c => c.id === contactId ? updatedContact : c);
+        const updatedContacts = record.contacts.map(c => c.id === contactId ? finalContact : c);
         const { error } = await supabase
           .from('referral_records')
           .update({ 
-            barberId: newBarberId,
-            barberName,
             contacts: updatedContacts 
           })
           .eq('id', recordId);
@@ -914,14 +917,13 @@ export default function App() {
         }
       }
 
-      // 2. Filtragem por barbeiro
-      if (filterBarberId !== 'all' && record.barberId !== filterBarberId) {
-        return null;
-      }
-
-      // 3. Filtragem por contatos (status, vendedor, fidelimax)
+      // 2. Filtragem por contatos (status, vendedor, fidelimax, barbeiro)
       const validContacts = record.contacts || [];
       const matchingContacts = validContacts.filter(contact => {
+        if (filterBarberId !== 'all') {
+          const cBarberId = contact.barberId || record.barberId;
+          if (cBarberId !== filterBarberId) return false;
+        }
         if (filterStatus !== 'all') {
           const cStatus = contact.status || (contact.subscriptionClosed ? 'converted' : contact.called ? 'contacted' : 'pending');
           if (cStatus !== filterStatus) return false;
@@ -936,7 +938,7 @@ export default function App() {
         return true;
       });
 
-      if ((filterStatus !== 'all' || filterSellerId !== 'all' || filterFidelimax !== 'all') && matchingContacts.length === 0) {
+      if ((filterStatus !== 'all' || filterSellerId !== 'all' || filterFidelimax !== 'all' || filterBarberId !== 'all') && matchingContacts.length === 0) {
         return null;
       }
 
@@ -1545,8 +1547,14 @@ export default function App() {
                              <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-400">
                                <select
                                  disabled={isRecordReadOnly(batch)}
-                                 value={batch.barberId || ''}
-                                 onChange={(e) => handleUpdateBatchBarber(batch.id, e.target.value)}
+                                 value={contact.barberId || batch.barberId || ''}
+                                 onChange={(e) => {
+                                   const selectedBarber = barbers.find(b => b.id === e.target.value);
+                                   updateContactData(batch.id, contact.id, { 
+                                     barberId: e.target.value,
+                                     barberName: selectedBarber?.name || ''
+                                   });
+                                 }}
                                  className="bg-transparent border-none text-zinc-400 hover:text-zinc-100 focus:text-zinc-100 focus:outline-none cursor-pointer p-0 w-full disabled:cursor-not-allowed disabled:text-zinc-600"
                                >
                                  <option value="" disabled className="bg-zinc-900 text-zinc-500">Selecione...</option>
@@ -1697,7 +1705,7 @@ export default function App() {
         contact={editingLead}
         clientName={editingLeadRecord?.clientName || ''}
         clientCpf={editingLeadRecord?.clientCpf || ''}
-        currentBarberId={editingLeadRecord?.barberId || ''}
+        currentBarberId={editingLead?.barberId || editingLeadRecord?.barberId || ''}
         barbers={barbers}
         sellers={sellers}
         plans={plans}

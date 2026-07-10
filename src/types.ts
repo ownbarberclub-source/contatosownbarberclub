@@ -12,6 +12,8 @@ export interface ContactPerson {
   fidelimaxStatus?: 'pending' | 'launched' | 'not_applicable';
   sellerId?: string; // ID do vendedor responsável
   planId?: string;   // ID do plano contratado
+  barberId?: string;
+  barberName?: string;
 }
 
 export interface Seller {
