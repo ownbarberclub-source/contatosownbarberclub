@@ -128,7 +128,10 @@ export function ConfigTab({
       monthRecords.forEach(record => {
         if (record.contacts) {
           record.contacts.forEach(contact => {
-            const hasBarber = !!(contact.barberId || contact.barberName || record.barberId || record.barberName);
+            const isNone = contact.barberId === 'none';
+            const cBarberId = isNone ? null : (contact.barberId || record.barberId || null);
+            const cBarberName = isNone ? null : (contact.barberName || record.barberName || null);
+            const hasBarber = cBarberId !== null || cBarberName !== null;
             if (contact.sellerId === seller.id && hasBarber) {
               totalLeads++;
               if (contact.subscriptionClosed || contact.status === 'converted') {

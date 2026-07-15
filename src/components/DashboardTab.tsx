@@ -90,11 +90,14 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
       receptionistPerformance[rName].created += loteSize;
 
       validContacts.forEach(contact => {
-        const hasBarber = !!(contact.barberId || contact.barberName || record.barberId || record.barberName);
+        const isNone = contact.barberId === 'none';
+        const contactBarberId = isNone ? null : (contact.barberId || record.barberId || null);
+        const contactBarberName = isNone ? null : (contact.barberName || record.barberName || null);
+        const hasBarber = contactBarberId !== null || contactBarberName !== null;
         
         let targetBarberName = 'Desconhecido';
         if (hasBarber) {
-          targetBarberName = contact.barberName || record.barberName || 'Desconhecido';
+          targetBarberName = contactBarberName || 'Desconhecido';
         } else if (contact.sellerId) {
           const sellerObj = sellers.find(s => s.id === contact.sellerId);
           const sellerName = sellerObj ? sellerObj.name : 'Desconhecido';

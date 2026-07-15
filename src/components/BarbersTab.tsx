@@ -108,10 +108,11 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
       monthRecords.forEach(record => {
         if (record.contacts) {
           record.contacts.forEach(c => {
-            const cBarberId = c.barberId || record.barberId;
-            const cBarberName = c.barberName || record.barberName;
+            const isNone = c.barberId === 'none';
+            const cBarberId = isNone ? null : (c.barberId || record.barberId);
+            const cBarberName = isNone ? null : (c.barberName || record.barberName);
 
-            const matchesBarber = cBarberId === barber.id || cBarberName === barber.name;
+            const matchesBarber = cBarberId === barber.id || (!isNone && cBarberName === barber.name);
             if (matchesBarber) {
               totalLeads++;
               if (c.status === 'converted' || c.subscriptionClosed) {
@@ -139,7 +140,10 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
       monthRecords.forEach(record => {
         if (record.contacts) {
           record.contacts.forEach(c => {
-            const hasBarber = !!(c.barberId || c.barberName || record.barberId || record.barberName);
+            const isNone = c.barberId === 'none';
+            const cBarberId = isNone ? null : (c.barberId || record.barberId);
+            const cBarberName = isNone ? null : (c.barberName || record.barberName);
+            const hasBarber = cBarberId !== null || cBarberName !== null;
             if (!hasBarber && c.sellerId === seller.id) {
               totalLeads++;
               if (c.status === 'converted' || c.subscriptionClosed) {

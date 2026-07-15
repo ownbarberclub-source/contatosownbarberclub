@@ -102,7 +102,8 @@ export function LeadEditModal({
       alert('Nome do lead é obrigatório.');
       return;
     }
-    if (!barberId && !sellerId) {
+    const hasSelectedBarber = barberId && barberId !== 'none';
+    if (!hasSelectedBarber && !sellerId) {
       alert('Selecione o barbeiro responsável ou um vendedor atribuído.');
       return;
     }
@@ -234,7 +235,7 @@ export function LeadEditModal({
                   onChange={(e) => setBarberId(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-200 focus:outline-none focus:border-brand cursor-pointer disabled:opacity-50"
                 >
-                  <option value="">Sem Barbeiro (Venda Direta)</option>
+                  <option value="none">Sem Barbeiro (Venda Direta)</option>
                   {barbers.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}

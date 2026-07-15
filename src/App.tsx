@@ -725,7 +725,7 @@ export default function App() {
     const recordId = editingLeadRecord.id;
     const contactId = editingLead.id;
 
-    const selectedBarber = newBarberId ? barbers.find(b => b.id === newBarberId) : null;
+    const selectedBarber = newBarberId && newBarberId !== 'none' ? barbers.find(b => b.id === newBarberId) : null;
     const barberName = selectedBarber?.name || '';
 
     // Add barber details directly to the contact object
@@ -1322,6 +1322,7 @@ export default function App() {
                     className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-brand cursor-pointer h-9"
                   >
                     <option value="all">Todos os Barbeiros</option>
+                    <option value="none">Sem Barbeiro (Venda Direta)</option>
                     {barbers.map(barber => (
                       <option key={barber.id} value={barber.id}>{barber.name}</option>
                     ))}
@@ -1561,7 +1562,7 @@ export default function App() {
                                  }}
                                  className="bg-transparent border-none text-zinc-400 hover:text-zinc-100 focus:text-zinc-100 focus:outline-none cursor-pointer p-0 w-full disabled:cursor-not-allowed disabled:text-zinc-600"
                                >
-                                 <option value="" disabled className="bg-zinc-900 text-zinc-500">Selecione...</option>
+                                 <option value="none" className="bg-zinc-900 text-zinc-350">Sem Barbeiro (Venda Direta)</option>
                                  {barbers.map(barber => (
                                    <option key={barber.id} value={barber.id} className="bg-zinc-900 text-zinc-100">
                                      {barber.name}
