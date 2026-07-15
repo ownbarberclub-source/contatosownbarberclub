@@ -725,14 +725,14 @@ export default function App() {
     const recordId = editingLeadRecord.id;
     const contactId = editingLead.id;
 
-    const selectedBarber = barbers.find(b => b.id === newBarberId);
+    const selectedBarber = newBarberId ? barbers.find(b => b.id === newBarberId) : null;
     const barberName = selectedBarber?.name || '';
 
     // Add barber details directly to the contact object
     const finalContact: ContactPerson = {
       ...updatedContact,
-      barberId: newBarberId,
-      barberName
+      barberId: newBarberId || undefined,
+      barberName: barberName || undefined
     };
 
     // Atualiza estado local
@@ -1176,6 +1176,7 @@ export default function App() {
             onAddBarber={handleAddBarber}
             onUpdateBarber={handleUpdateBarber}
             onRemoveBarber={handleRemoveBarber}
+            sellers={sellers}
           />
                 ) : activeTab === 'dashboard' && currentUser.isAdmin ? (
           <DashboardTab records={campaignFilteredRecords} sellers={sellers} />

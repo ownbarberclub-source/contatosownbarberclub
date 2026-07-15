@@ -90,20 +90,29 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
       receptionistPerformance[rName].created += loteSize;
 
       validContacts.forEach(contact => {
-        const contactBarberName = contact.barberName || record.barberName || 'Desconhecido';
+        const hasBarber = !!(contact.barberId || contact.barberName || record.barberId || record.barberName);
         
-        if (!barberPerformance[contactBarberName]) {
-          barberPerformance[contactBarberName] = { leads: 0, conversions: 0, noResponse: 0 };
+        let targetBarberName = 'Desconhecido';
+        if (hasBarber) {
+          targetBarberName = contact.barberName || record.barberName || 'Desconhecido';
+        } else if (contact.sellerId) {
+          const sellerObj = sellers.find(s => s.id === contact.sellerId);
+          const sellerName = sellerObj ? sellerObj.name : 'Desconhecido';
+          targetBarberName = `${sellerName} (Venda Direta)`;
         }
         
-        barberPerformance[contactBarberName].leads++;
+        if (!barberPerformance[targetBarberName]) {
+          barberPerformance[targetBarberName] = { leads: 0, conversions: 0, noResponse: 0 };
+        }
+        
+        barberPerformance[targetBarberName].leads++;
 
         if (contact.status && contact.status !== 'pending') {
           contactedLeads++;
         }
         if (contact.status === 'no_response') {
           noResponseLeads++;
-          barberPerformance[contactBarberName].noResponse++;
+          barberPerformance[targetBarberName].noResponse++;
         }
         if (contact.status === 'invalid_number') {
           invalidNumberLeads++;
@@ -116,7 +125,7 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
         }
         
         // Atribuição de vendedor
-        if (contact.sellerId) {
+        if (contact.sellerId && hasBarber) {
           if (!sellerPerformance[contact.sellerId]) {
             const foundSeller = sellers.find(s => s.id === contact.sellerId);
             sellerPerformance[contact.sellerId] = { 
@@ -135,9 +144,9 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
 
         if (isConverted) {
           convertedLeads++;
-          barberPerformance[contactBarberName].conversions++;
+          barberPerformance[targetBarberName].conversions++;
           receptionistPerformance[rName].conversions++;
-          if (contact.sellerId) {
+          if (contact.sellerId && hasBarber) {
             sellerPerformance[contact.sellerId].conversions++;
           }
         }

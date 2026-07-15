@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Unit, Barber, ReferralRecord, User } from '../types';
+import { Unit, Barber, ReferralRecord, User, Seller } from '../types';
 import { formatCPF } from '../utils';
 import { Building2, Scissors, CalendarDays, Plus, Trash2, Trophy, Edit2, Check, X } from 'lucide-react';
 
@@ -13,9 +13,10 @@ interface BarbersTabProps {
   onAddBarber: (name: string, unitId: string) => void;
   onUpdateBarber: (id: string, data: Partial<Barber>) => void;
   onRemoveBarber: (id: string) => void;
+  sellers: Seller[];
 }
 
-export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, onRemoveUnit, onAddBarber, onUpdateBarber, onRemoveBarber }: BarbersTabProps) {
+export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, onRemoveUnit, onAddBarber, onUpdateBarber, onRemoveBarber, sellers }: BarbersTabProps) {
   const [newUnitName, setNewUnitName] = useState('');
   const [newBarberName, setNewBarberName] = useState('');
   const [selectedUnitForBarber, setSelectedUnitForBarber] = useState('');
@@ -97,10 +98,10 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
       });
     }
 
-    const ranking = barbers.map(barber => {
+    // 1. Calculate stats for each barber
+    const barbersList = barbers.map(barber => {
       const unit = units.find(u => u.id === barber.unit_id);
       
-      // Sum closed subscriptions and total leads based on contact-level barber
       let closedSubscriptions = 0;
       let totalLeads = 0;
 
@@ -122,16 +123,55 @@ export function BarbersTab({ units, barbers, records, currentUser, onAddUnit, on
       });
 
       return {
-        ...barber,
+        id: barber.id,
+        name: barber.name,
         unitName: unit?.name || 'Desconhecida',
         closedSubscriptions,
         totalLeads
       };
     });
 
-    // Sort by subscriptions descending
-    return ranking.sort((a, b) => b.closedSubscriptions - a.closedSubscriptions);
-  }, [viewType, selectedMonth, selectedYear, records, barbers, units]);
+    // 2. Calculate direct sales stats for each seller
+    const sellersList = (sellers || []).map(seller => {
+      let closedSubscriptions = 0;
+      let totalLeads = 0;
+
+      monthRecords.forEach(record => {
+        if (record.contacts) {
+          record.contacts.forEach(c => {
+            const hasBarber = !!(c.barberId || c.barberName || record.barberId || record.barberName);
+            if (!hasBarber && c.sellerId === seller.id) {
+              totalLeads++;
+              if (c.status === 'converted' || c.subscriptionClosed) {
+                closedSubscriptions++;
+              }
+            }
+          });
+        }
+      });
+
+      if (totalLeads === 0) return null;
+
+      return {
+        id: seller.id,
+        name: `${seller.name} (Venda Direta)`,
+        unitName: 'Venda Direta',
+        closedSubscriptions,
+        totalLeads
+      };
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+
+    // 3. Combine and sort
+    const combined = [...barbersList, ...sellersList];
+
+    // Sort by subscriptions descending, then by totalLeads descending
+    return combined.sort((a, b) => {
+      if (b.closedSubscriptions === a.closedSubscriptions) {
+        return b.totalLeads - a.totalLeads;
+      }
+      return b.closedSubscriptions - a.closedSubscriptions;
+    });
+  }, [viewType, selectedMonth, selectedYear, records, barbers, units, sellers]);
 
   return (
     <div className="space-y-8">

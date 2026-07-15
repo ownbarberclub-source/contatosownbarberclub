@@ -128,7 +128,8 @@ export function ConfigTab({
       monthRecords.forEach(record => {
         if (record.contacts) {
           record.contacts.forEach(contact => {
-            if (contact.sellerId === seller.id) {
+            const hasBarber = !!(contact.barberId || contact.barberName || record.barberId || record.barberName);
+            if (contact.sellerId === seller.id && hasBarber) {
               totalLeads++;
               if (contact.subscriptionClosed || contact.status === 'converted') {
                 closedSubscriptions++;
