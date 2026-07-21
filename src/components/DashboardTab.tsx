@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { ReferralRecord, Seller } from '../types';
+import { ReferralRecord, Seller, Barber } from '../types';
 import { BarChart3, Users, TrendingUp, TrendingDown, Target, Zap, Crown, AlertTriangle, PhoneOff, RefreshCcw, PhoneCall } from 'lucide-react';
 
 interface DashboardTabProps {
   records: ReferralRecord[];
   sellers: Seller[];
+  barbers: Barber[];
 }
 
-export function DashboardTab({ records, sellers }: DashboardTabProps) {
+export function DashboardTab({ records, sellers, barbers }: DashboardTabProps) {
   // Configuração padrão de datas (Últimos 30 dias até hoje)
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -97,7 +98,11 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
         
         let targetBarberName = 'Desconhecido';
         if (hasBarber) {
-          targetBarberName = contactBarberName || 'Desconhecido';
+          const foundBarber = (barbers || []).find(b => 
+            b.id === contactBarberId || 
+            (contactBarberName && b.name.trim().toLowerCase() === contactBarberName.trim().toLowerCase())
+          );
+          targetBarberName = foundBarber ? foundBarber.name : (contactBarberName || 'Desconhecido');
         } else if (contact.sellerId) {
           const sellerObj = sellers.find(s => s.id === contact.sellerId);
           const sellerName = sellerObj ? sellerObj.name : 'Desconhecido';
@@ -140,10 +145,7 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
           sellerPerformance[contact.sellerId].leads++;
         }
 
-        // Prioritiza o novo sistema de status para o Analytics
-        const isConverted = contact.status 
-          ? contact.status === 'converted' 
-          : contact.subscriptionClosed;
+        const isConverted = contact.status === 'converted' || !!contact.subscriptionClosed;
 
         if (isConverted) {
           convertedLeads++;
@@ -194,7 +196,7 @@ export function DashboardTab({ records, sellers }: DashboardTabProps) {
           : b.conversions - a.conversions);
 
     return { totalLeads, contactRate, contactedLeads, scheduledRate, scheduledLeads, conversionRate, convertedLeads, noResponseRate, noResponseLeads, invalidNumberRate, invalidNumberLeads, frequentRate, frequentLeads, topBarbers, topReceptionistsByVolume, topReceptionistsByConversion, topSellers };
-  }, [filteredRecords, sellers]);
+  }, [filteredRecords, sellers, barbers]);
 
   // UI Components Extras
   const StatisticCard = ({ title, value, subtitle, icon: Icon, color }: any) => (

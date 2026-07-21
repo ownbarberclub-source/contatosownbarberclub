@@ -1169,7 +1169,7 @@ export default function App() {
           <BarbersTab
             units={units}
             barbers={barbers}
-            records={records}
+            records={campaignFilteredRecords}
             currentUser={currentUser}
             onAddUnit={handleAddUnit}
             onRemoveUnit={handleRemoveUnit}
@@ -1179,7 +1179,7 @@ export default function App() {
             sellers={sellers}
           />
                 ) : activeTab === 'dashboard' && currentUser.isAdmin ? (
-          <DashboardTab records={campaignFilteredRecords} sellers={sellers} />
+          <DashboardTab records={campaignFilteredRecords} sellers={sellers} barbers={barbers} />
         ) : activeTab === 'configuracoes' && currentUser.isAdmin ? (
           <ConfigTab
             sellers={sellers}
